@@ -1,5 +1,6 @@
 use bevy::{input::common_conditions::input_just_pressed, log::tracing_subscriber::field::debug, prelude::*};
 use bevy_rapier3d::prelude::*;
+use td_3::tilemap::{self, Tilemap};
 
 #[derive(Component)]
 struct Ball;
@@ -11,10 +12,10 @@ fn main() {
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
+            Tilemap
         ))
         .insert_resource(ClearColor(Color::srgb(0.1,0.1,0.1)))
         .add_systems(Startup, (setup_graphics, setup_physics))
-        .add_systems(Update, print_ball_altitude)
         .add_systems(Update, toggle_debug.run_if(input_just_pressed(KeyCode::Space)))
         .run(); 
 }

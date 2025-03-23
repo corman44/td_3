@@ -23,7 +23,10 @@ impl Plugin for Ui {
                 pause_menu.run_if(
                     not(in_state(AppState::PauseMenu))
                         .and(not(in_state(AppState::StartMenu)))
-                        .and(input_just_pressed(KeyCode::KeyP)),
+                        .and(
+                            input_just_pressed(KeyCode::KeyP)
+                                .or(input_just_pressed(KeyCode::Escape)),
+                        ),
                 ),
             );
     }
@@ -61,6 +64,7 @@ fn display_menu(mut commands: Commands) {
             height: Val::Percent(100.0),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
+            column_gap: Val::Px(10.0),
             ..default()
         })
         .with_children(|parent| {
@@ -68,6 +72,15 @@ fn display_menu(mut commands: Commands) {
                 Button,
                 ButtonType::StartGame,
                 Text::new("Start Game"),
+                BorderColor(Color::BLACK),
+                BorderRadius::MAX,
+                BackgroundColor(NORMAL_BUTTON),
+            ));
+            // Spawn Settings Button
+            parent.spawn((
+                Button,
+                ButtonType::Settings,
+                Text::new("Settings"),
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),

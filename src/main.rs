@@ -1,9 +1,12 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use td_3::{tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
 // TODO create a level editor (save and loading levels)
+// TODO spawn map and show the enemy path along the route
+// TODO highlight top of block when mouse passes over it 
 
 fn main() {
     let _app = App::new()
@@ -13,6 +16,7 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             Tilemap,
             Ui,
+            WorldInspectorPlugin::new(),
         ))
         .init_state::<AppState>()
         .insert_resource(ClearColor(Color::srgb(0.1,0.1,0.1)))

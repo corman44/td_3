@@ -93,8 +93,6 @@ pub enum ButtonType {
 }
 
 fn menu_button_system(
-    mut commands: Commands,
-    mut cam2d: Query<&mut Camera, With<Camera2d>>,
     mut buttons: Query<
         (&Interaction, &mut BackgroundColor, &ButtonType),
         (Changed<Interaction>, With<Button>),

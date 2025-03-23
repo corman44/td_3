@@ -4,9 +4,9 @@ use bevy_rapier3d::prelude::*;
 use td_3::{tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
-// TODO create a level editor (save and loading levels)
-// TODO spawn map and show the enemy path along the route
+// TODO show borders on each tile
 // TODO highlight top of block when mouse passes over it 
+// TODO create a level editor (save and loading levels)
 
 fn main() {
     let _app = App::new()

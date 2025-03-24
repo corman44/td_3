@@ -1,13 +1,13 @@
 use crate::StartGameEvent;
 use bevy::prelude::*;
-use std::{collections::HashMap, ops::Deref};
+use std::collections::HashMap;
 
 pub const GROUND_TILE_COLOR: Color = Color::srgb(0.15, 0.75, 0.25);
 pub const ENEMY_TILE_COLOR: Color = Color::srgb(0.75, 0.35, 0.25);
 pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
 pub const TILE_SCALE: f32 = 10.0;
 
-#[derive(Debug, Component, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy)]
 pub enum TileType {
     EnemyMap(EnemyTile),
     Blocked,
@@ -26,15 +26,15 @@ enum MapState {
     Spawned,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq)]
-enum EnemyTile {
+#[derive(Debug, Clone, Default, Eq, PartialEq, Copy)]
+pub enum EnemyTile {
     Start,
     #[default]
     Path,
     Finish,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum TowerType {
     T1,
     T2,
@@ -88,7 +88,7 @@ fn spawn_map(
             let map = gtm.0.clone();
             // let size = gtm.1;
             for (v, tile) in map.iter() {
-                let mut tile_color: Color;
+                let tile_color: Color;
                 match tile {
                     TileType::EnemyMap(_et) => {
                         tile_color = ENEMY_TILE_COLOR;
@@ -113,31 +113,8 @@ fn spawn_map(
                         // TileId(*v),
                     ))
                     // .observe(|trigger: Trigger<Pointer<Click>>| { info!("{:?} was clicked!", trigger.target)})
-                    .observe(update_material_on::<Pointer<Over>>(
-                        materials.add(HOVER_COLOR),
-                    ))
-                    .observe(|
-                        trigger: Trigger<Pointer<Out>>,
-                        mut material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
-                        mut commands: Commands
-                        | {
-                            let ent = trigger.entity();
-                            let mut clr: Color;
-                            // commands.entity(ent).entry::<TileType>().and_modify(|t| {
-                                // match t.deref() {
-                                    // TileType::EnemyMap(_enemy_tile) => {
-                                        // material_query.get_mut(ent).and_then(|mut mat| {
-                                            // Ok(mat.0 = materials.add(ENEMY_TILE_COLOR))
-                                        // });
-                                    // }
-                                    // _ => { 
-                                        // material_query.get_mut(ent).and_then(|mut mat| {
-                                            // Ok(mat.0 = materials.add(ENEMY_TILE_COLOR))
-                                        // });
-                                    // }
-                                // };
-                            // })
-                         });
+                    .observe(recolor::<Pointer<Over>>(0.15))
+                    .observe(recolor::<Pointer<Out>>(0.0));
 
             // Spawn Ambient Light
             commands.insert_resource(AmbientLight {
@@ -153,12 +130,22 @@ fn spawn_map(
 
 /// Scale color up and down
 fn recolor<E>(
-    color_add: f32,
-) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial3d<StandardMaterial>>, Commands) {
-    move |trigger, mut query, mut commands| {
-        // info!("Triggered Picking Event: {:?}", trigger.event_type());
-        if let Ok(mut material) = query.get_mut(trigger.entity()) {
-            material.0 = Color::BLACK.into();
+   scale: f32 
+) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial3d<StandardMaterial>>, ResMut<Assets<StandardMaterial>>, Query<&TileType>) {
+    move |trigger, mut query, mut materials, tile_type| {
+
+        let ent = trigger.entity();
+        let mut mat = query.get_mut(ent).expect(&format!("Expected material found in Entity: {:?}", ent));
+        let tile_type = tile_type.get(ent).expect(&format!("no TileType found for Entity: {:?}",ent));
+        
+        match tile_type {
+            TileType::EnemyMap(_enemy_tile) => {
+                mat.0 = materials.add(ENEMY_TILE_COLOR.darker(scale));
+            },
+            _ => {
+                mat.0 = materials.add(GROUND_TILE_COLOR.darker(scale));
+
+            }
         }
     }
 }

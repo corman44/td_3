@@ -23,7 +23,10 @@ impl Plugin for Ui {
                 pause_menu.run_if(
                     not(in_state(AppState::PauseMenu))
                         .and(not(in_state(AppState::StartMenu)))
-                        .and(input_just_pressed(KeyCode::KeyP)),
+                        .and(
+                            input_just_pressed(KeyCode::KeyP)
+                                .or(input_just_pressed(KeyCode::Escape)),
+                        ),
                 ),
             );
     }
@@ -31,11 +34,13 @@ impl Plugin for Ui {
 
 fn pause_menu(
     mut app_state: ResMut<NextState<AppState>>,
-    mut cam2d: Query<&mut Camera, With<Camera2d>>,
     mut buttons: Query<&mut Visibility, With<Button>>,
+    mut nodes: Query<&mut Node>,
 ) {
     app_state.set(AppState::PauseMenu);
-    cam2d.single_mut().is_active = true;
+    for mut node in nodes.iter_mut() {
+        node.display = Display::default();
+    }
     for mut butt in buttons.iter_mut() {
         butt.toggle_visible_hidden();
     }
@@ -43,17 +48,9 @@ fn pause_menu(
 
 /// starting menu displayed when launching game
 /// Screen Flow: ..booting -> StartingMenu -> Game / Level Editor -> Pause -> Settings / Starting / Exit
-fn display_menu(mut commands: Commands) {
-    // TODO display simple buttons for starting the game
-    commands.spawn((
-        Camera2d,
-        Camera {
-            order: 1,
-            is_active: true,
-            ..default()
-        },
-    ));
-
+fn display_menu(
+    mut commands: Commands,
+) {
     // Spawn Game Button
     commands
         .spawn(Node {
@@ -61,6 +58,7 @@ fn display_menu(mut commands: Commands) {
             height: Val::Percent(100.0),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
+            column_gap: Val::Px(10.0),
             ..default()
         })
         .with_children(|parent| {
@@ -68,6 +66,15 @@ fn display_menu(mut commands: Commands) {
                 Button,
                 ButtonType::StartGame,
                 Text::new("Start Game"),
+                BorderColor(Color::BLACK),
+                BorderRadius::MAX,
+                BackgroundColor(NORMAL_BUTTON),
+            ));
+            // Spawn Settings Button
+            parent.spawn((
+                Button,
+                ButtonType::Settings,
+                Text::new("Settings"),
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
@@ -100,6 +107,7 @@ fn menu_button_system(
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
     mut app_state: ResMut<NextState<AppState>>,
+    keeb: Res<ButtonInput<KeyCode>>, 
 ) {
     for (interaction, mut color, button_type) in buttons.iter_mut() {
         match *interaction {
@@ -132,18 +140,26 @@ fn menu_button_system(
             }
         }
     }
+
+    if keeb.just_pressed(KeyCode::KeyG) {
+        info!("Starting Game!");
+        app_state.set(AppState::InGame);
+        ev_desp_menu.send(StartGameEvent);
+    }
 }
 
-/// despawn buttons and hide 2d camera
+/// Hide buttons and UI Nodes
 fn despawn_menu(
     mut buttons: Query<&mut Visibility, With<Button>>,
-    mut cam2d: Query<&mut Camera, With<Camera2d>>,
     mut ev_desp_menu: EventReader<StartGameEvent>,
+    mut nodes: Query<&mut Node>,
 ) {
     for _ev in ev_desp_menu.read() {
-        cam2d.single_mut().is_active = false;
         for mut each in buttons.iter_mut() {
             each.toggle_visible_hidden();
+        }
+        for mut each in nodes.iter_mut() {
+            each.display = Display::None;
         }
     }
 }

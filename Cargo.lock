@@ -4653,6 +4653,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-inspector-egui",
+ "bevy_picking",
  "bevy_rapier3d",
  "glam 0.30.1",
 ]

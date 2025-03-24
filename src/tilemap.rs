@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use bevy::{prelude::*, render::camera::ScalingMode};
 use crate::StartGameEvent;
+use bevy::prelude::*;
+use std::{collections::HashMap, ops::Deref};
 
-const GROUND_TILE_COLOR: Color =  Color::srgb(0.15, 0.75, 0.25);
-const ENEMY_TILE_COLOR: Color =  Color::srgb(0.75, 0.35, 0.25);
-const TILE_SCALE: f32 = 10.0;
+pub const GROUND_TILE_COLOR: Color = Color::srgb(0.15, 0.75, 0.25);
+pub const ENEMY_TILE_COLOR: Color = Color::srgb(0.75, 0.35, 0.25);
+pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
+pub const TILE_SCALE: f32 = 10.0;
 
 #[derive(Debug, Component, Clone, Default, PartialEq, Eq)]
 pub enum TileType {
@@ -14,6 +15,9 @@ pub enum TileType {
     Free,
     Tower(TowerType),
 }
+
+// #[derive(Debug, Component, Clone, PartialEq, Eq)]
+// pub struct TileId(IVec2);
 
 #[derive(Debug, Clone, States, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 enum MapState {
@@ -38,14 +42,14 @@ pub enum TowerType {
 }
 
 #[derive(Debug, Resource, Clone, Default)]
-pub struct GameTilemap(HashMap<IVec2,TileType>);
+pub struct GameTilemap(HashMap<IVec2, TileType>);
 
 impl GameTilemap {
     pub fn new(size: i32) -> Self {
         let mut gtm = GameTilemap::default();
         for i in 0..size {
             for j in 0..size {
-                gtm.0.insert(IVec2::new(i, j),TileType::Free);
+                gtm.0.insert(IVec2::new(i, j), TileType::Free);
             }
         }
         gtm
@@ -56,8 +60,7 @@ pub struct Tilemap;
 
 impl Plugin for Tilemap {
     fn build(&self, app: &mut App) {
-        app
-            .insert_resource(GameTilemap::new(10))
+        app.insert_resource(GameTilemap::new(10))
             .insert_resource(EnemyPath(None))
             .init_state::<MapState>()
             .add_systems(Startup, setup_tilemap)
@@ -67,6 +70,7 @@ impl Plugin for Tilemap {
 
 fn spawn_map(
     mut commands: Commands,
+    mut cam_query: Query<&mut Camera, With<Camera3d>>,
     mut ev_start_game: EventReader<StartGameEvent>,
     gtm: Res<GameTilemap>,
     map_state: Res<State<MapState>>,
@@ -78,6 +82,8 @@ fn spawn_map(
         if map_state.as_ref() != &MapState::Spawned {
             info!("Spawning Map..");
 
+            cam_query.single_mut().is_active = true;
+
             // Spawn Ground Tiles
             let map = gtm.0.clone();
             // let size = gtm.1;
@@ -86,38 +92,52 @@ fn spawn_map(
                 match tile {
                     TileType::EnemyMap(_et) => {
                         tile_color = ENEMY_TILE_COLOR;
-                    },
+                    }
                     TileType::Blocked => {
                         tile_color = GROUND_TILE_COLOR;
-                    },
+                    }
                     TileType::Free => {
                         tile_color = GROUND_TILE_COLOR;
-                    },
+                    }
                     TileType::Tower(_tt) => {
-                        tile_color = GROUND_TILE_COLOR; 
-                    },
+                        tile_color = GROUND_TILE_COLOR;
+                    }
                 }
-                commands.spawn((
-                    // BorderColor(Color::BLACK),
-                    Mesh3d(meshes.add(Cuboid::new(1.0 * TILE_SCALE, 0.1, 1.0 * TILE_SCALE))),
-                    MeshMaterial3d(materials.add(tile_color)),
-                    Transform::from_xyz(v.x as f32 * TILE_SCALE, 0.0, v.y as f32 * TILE_SCALE),
-                    tile.clone(),
-                ));
-            }
-        
-            // Spawn 3d Camera
-            commands.spawn((
-                Camera3d {
-                    ..default()
-                },
-                Projection::Orthographic(
-                    OrthographicProjection {
-                        scaling_mode: ScalingMode::FixedVertical { viewport_height: 10.0 * TILE_SCALE },
-                        ..OrthographicProjection::default_3d()
-                    }),
-                Transform::from_xyz(120.0, 75.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ));
+                commands
+                    .spawn((
+                        Mesh3d(meshes.add(Cuboid::new(1.0 * TILE_SCALE, 0.1, 1.0 * TILE_SCALE))),
+                        MeshMaterial3d(materials.add(tile_color)),
+                        Transform::from_xyz(v.x as f32 * TILE_SCALE, 0.0, v.y as f32 * TILE_SCALE),
+                        tile.clone(),
+                        // RayCastPickable,
+                        // TileId(*v),
+                    ))
+                    // .observe(|trigger: Trigger<Pointer<Click>>| { info!("{:?} was clicked!", trigger.target)})
+                    .observe(update_material_on::<Pointer<Over>>(
+                        materials.add(HOVER_COLOR),
+                    ))
+                    .observe(|
+                        trigger: Trigger<Pointer<Out>>,
+                        mut material_query: Query<&mut MeshMaterial3d<StandardMaterial>>,
+                        mut commands: Commands
+                        | {
+                            let ent = trigger.entity();
+                            let mut clr: Color;
+                            // commands.entity(ent).entry::<TileType>().and_modify(|t| {
+                                // match t.deref() {
+                                    // TileType::EnemyMap(_enemy_tile) => {
+                                        // material_query.get_mut(ent).and_then(|mut mat| {
+                                            // Ok(mat.0 = materials.add(ENEMY_TILE_COLOR))
+                                        // });
+                                    // }
+                                    // _ => { 
+                                        // material_query.get_mut(ent).and_then(|mut mat| {
+                                            // Ok(mat.0 = materials.add(ENEMY_TILE_COLOR))
+                                        // });
+                                    // }
+                                // };
+                            // })
+                         });
 
             // Spawn Ambient Light
             commands.insert_resource(AmbientLight {
@@ -125,10 +145,20 @@ fn spawn_map(
                 brightness: 1000.0,
             });
 
-            // Spawn grid overlay on ground
-            // TODO how to add border to all blocks?
-
             next_map_state.set(MapState::Spawned);
+        }
+    }
+}
+}
+
+/// Scale color up and down
+fn recolor<E>(
+    color_add: f32,
+) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial3d<StandardMaterial>>, Commands) {
+    move |trigger, mut query, mut commands| {
+        // info!("Triggered Picking Event: {:?}", trigger.event_type());
+        if let Ok(mut material) = query.get_mut(trigger.entity()) {
+            material.0 = Color::BLACK.into();
         }
     }
 }
@@ -136,32 +166,27 @@ fn spawn_map(
 #[derive(Debug, Resource, Clone)]
 pub struct EnemyPath(Option<Vec<IVec2>>);
 
-fn setup_tilemap(
-    mut gtm: ResMut<GameTilemap>,
-    mut enemy_path: ResMut<EnemyPath>,
-) {
-    let default_path = Some(
-        vec![
-            IVec2::new(1, 1),
-            IVec2::new(1, 2),
-            IVec2::new(1, 3),
-            IVec2::new(1, 4),
-            IVec2::new(1, 5),
-            IVec2::new(2, 5),
-            IVec2::new(2, 6),
-            IVec2::new(3, 6),
-            IVec2::new(4, 6),
-            IVec2::new(5, 6),
-            IVec2::new(5, 7),
-            IVec2::new(5, 8),
-        ]
-    );
+fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>) {
+    let default_path = Some(vec![
+        IVec2::new(1, 1),
+        IVec2::new(1, 2),
+        IVec2::new(1, 3),
+        IVec2::new(1, 4),
+        IVec2::new(1, 5),
+        IVec2::new(2, 5),
+        IVec2::new(2, 6),
+        IVec2::new(3, 6),
+        IVec2::new(4, 6),
+        IVec2::new(5, 6),
+        IVec2::new(5, 7),
+        IVec2::new(5, 8),
+    ]);
 
     if enemy_path.0.is_none() {
         // info!("Enemy Path not created yet.. Loading Default");
         enemy_path.0 = default_path;
     }
-    
+
     // First tile is Start and last Tile is finish
     for (idx, tile) in enemy_path.0.clone().expect("no path..").iter().enumerate() {
         if idx == 0 {
@@ -172,5 +197,11 @@ fn setup_tilemap(
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Path));
         }
     }
-    info!("Enemy Path len: {}", gtm.0.iter().filter(|(_, x)| matches!(x, TileType::EnemyMap(_))).count());
+    info!(
+        "Enemy Path len: {}",
+        gtm.0
+            .iter()
+            .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
+            .count()
+    );
 }

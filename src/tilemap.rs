@@ -6,6 +6,7 @@ pub const GROUND_TILE_COLOR: Color = Color::srgb(0.15, 0.75, 0.25);
 pub const ENEMY_TILE_COLOR: Color = Color::srgb(0.75, 0.35, 0.25);
 pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
 pub const TILE_SCALE: f32 = 10.0;
+pub const MAP_SIZE: i32 = 10;
 
 /// enum for tile types
 #[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy)]
@@ -43,7 +44,7 @@ pub enum TowerType {
 }
 
 #[derive(Debug, Resource, Clone, Default)]
-pub struct GameTilemap(HashMap<IVec2, TileType>);
+pub struct GameTilemap(pub HashMap<IVec2, TileType>);
 
 impl GameTilemap {
     pub fn new(size: i32) -> Self {
@@ -55,13 +56,19 @@ impl GameTilemap {
         }
         gtm
     }
+
+    pub fn reset_map(&mut self) {
+        for tile in &mut self.0 {
+            *tile.1 = TileType::Free;
+        }
+    }
 }
 
 pub struct Tilemap;
 
 impl Plugin for Tilemap {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GameTilemap::new(10))
+        app.insert_resource(GameTilemap::new(MAP_SIZE))
             .insert_resource(EnemyPath(None))
             .init_state::<MapState>()
             .add_systems(Startup, setup_tilemap)
@@ -110,8 +117,6 @@ fn spawn_map(
                         MeshMaterial3d(materials.add(tile_color)),
                         Transform::from_xyz(v.x as f32 * TILE_SCALE, 0.0, v.y as f32 * TILE_SCALE),
                         tile.clone(),
-                        // RayCastPickable,
-                        // TileId(*v),
                     ))
                     // .observe(|trigger: Trigger<Pointer<Click>>| { info!("{:?} was clicked!", trigger.target)})
                     .observe(recolor::<Pointer<Over>>(0.15))
@@ -154,7 +159,10 @@ fn recolor<E>(
 #[derive(Debug, Resource, Clone)]
 pub struct EnemyPath(Option<Vec<IVec2>>);
 
-fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>) {
+fn setup_tilemap(
+    mut gtm: ResMut<GameTilemap>,
+    mut enemy_path: ResMut<EnemyPath>,
+) {
     let default_path = Some(vec![
         IVec2::new(1, 1),
         IVec2::new(1, 2),
@@ -173,7 +181,6 @@ fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>
     ]);
 
     if enemy_path.0.is_none() {
-        // info!("Enemy Path not created yet.. Loading Default");
         enemy_path.0 = default_path;
     }
 

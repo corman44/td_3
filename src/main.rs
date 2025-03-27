@@ -1,7 +1,7 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
-use td_3::{setup, tilemap::Tilemap, ui::Ui, AppState};
+use td_3::{editor::Editor, setup, tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
 // TODO create a level editor (save and loading levels)
@@ -12,6 +12,7 @@ fn main() {
             DefaultPlugins,
             // RapierPhysicsPlugin::<NoUserData>::default(),
             // RapierDebugRenderPlugin::default(),
+            Editor,
             MeshPickingPlugin,
             Tilemap,
             Ui,

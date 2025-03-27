@@ -1,6 +1,7 @@
 use bevy::{prelude::*, render::camera::ScalingMode};
 use tilemap::TILE_SCALE;
 
+pub mod editor;
 pub mod tilemap;
 pub mod ui;
 
@@ -10,6 +11,7 @@ pub enum AppState {
     #[default]
    StartMenu,
    InGame,
+   InEditor,
    PauseMenu,
    Exit, 
 }
@@ -25,11 +27,7 @@ pub fn setup(
     // Spawn 3d Camera
     commands.spawn((
         Camera3d::default(),
-        Camera {
-            is_active: false,
-            order: 1,
-            ..default()
-        },
+        Camera::default(),
         Projection::Orthographic(
             OrthographicProjection {
                 scaling_mode: ScalingMode::FixedVertical { viewport_height: 10.0 * TILE_SCALE },

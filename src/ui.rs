@@ -11,7 +11,7 @@ pub struct Ui;
 impl Plugin for Ui {
     fn build(&self, app: &mut App) {
         app.add_event::<StartGameEvent>()
-            .add_systems(Startup, display_menu)
+            .add_systems(PostStartup, display_menu)
             .add_systems(
                 Update,
                 (menu_button_system)
@@ -51,6 +51,7 @@ fn pause_menu(
 fn display_menu(
     mut commands: Commands,
 ) {
+    info!("Displayng Menu");
     // Spawn Game Button
     commands
         .spawn(Node {
@@ -66,6 +67,14 @@ fn display_menu(
                 Button,
                 ButtonType::StartGame,
                 Text::new("Start Game"),
+                BorderColor(Color::BLACK),
+                BorderRadius::MAX,
+                BackgroundColor(NORMAL_BUTTON),
+            ));
+            parent.spawn((
+                Button,
+                ButtonType::LevelEdit,
+                Text::new("LevelEditor"),
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
@@ -121,6 +130,7 @@ fn menu_button_system(
                     }
                     ButtonType::Settings => {
                         info!("Settings");
+                        app_state.set(AppState::InEditor);
                     }
                     ButtonType::LevelEdit => {
                         info!("Level Editting");

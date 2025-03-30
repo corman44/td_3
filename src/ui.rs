@@ -17,7 +17,6 @@ impl Plugin for Ui {
                 (menu_button_system)
                     .run_if(in_state(AppState::StartMenu).or(in_state(AppState::PauseMenu))),
             )
-            .add_systems(Update, despawn_menu)
             .add_systems(
                 Update,
                 pause_menu.run_if(
@@ -109,16 +108,17 @@ pub enum ButtonType {
 }
 
 fn menu_button_system(
+    mut app_state: ResMut<NextState<AppState>>,
     mut buttons: Query<
-        (&Interaction, &mut BackgroundColor, &ButtonType),
+        (&Interaction, &mut BackgroundColor, &ButtonType, &mut Visibility),
         (Changed<Interaction>, With<Button>),
     >,
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
-    mut app_state: ResMut<NextState<AppState>>,
     keeb: Res<ButtonInput<KeyCode>>, 
+    mut nodes: Query<&mut Node>,
 ) {
-    for (interaction, mut color, button_type) in buttons.iter_mut() {
+    for (interaction, mut color, button_type, mut vis) in buttons.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
@@ -127,13 +127,15 @@ fn menu_button_system(
                         info!("Starting Game!");
                         app_state.set(AppState::InGame);
                         ev_desp_menu.send(StartGameEvent);
+                        despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Settings => {
                         info!("Settings");
-                        app_state.set(AppState::InEditor);
                     }
                     ButtonType::LevelEdit => {
                         info!("Level Editting");
+                        app_state.set(AppState::InEditor); 
+                        despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Exit => {
                         info!("Goodbye!");
@@ -160,16 +162,13 @@ fn menu_button_system(
 
 /// Hide buttons and UI Nodes
 fn despawn_menu(
-    mut buttons: Query<&mut Visibility, With<Button>>,
-    mut ev_desp_menu: EventReader<StartGameEvent>,
-    mut nodes: Query<&mut Node>,
+    // mut buttons: &mut Query<&mut Visibility, With<Button>>,
+    mut nodes: &mut Query<&mut Node>,
+    mut vis: &mut Mut< '_, Visibility>,
 ) {
-    for _ev in ev_desp_menu.read() {
-        for mut each in buttons.iter_mut() {
-            each.toggle_visible_hidden();
-        }
-        for mut each in nodes.iter_mut() {
-            each.display = Display::None;
-        }
+    vis.toggle_visible_hidden();
+    for mut each in nodes.iter_mut() {
+        each.display = Display::None;
+
     }
 }

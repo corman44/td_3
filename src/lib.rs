@@ -1,10 +1,11 @@
 use bevy::{prelude::*, render::camera::ScalingMode};
-use tilemap::TILE_SCALE;
+use tilemap::{MAP_SIZE, TILE_SCALE};
 
 pub mod editor;
 pub mod tilemap;
 pub mod ui;
 
+pub const DEFAULT_CAMERA: Transform = Transform::from_xyz(TILE_SCALE * MAP_SIZE as f32 * 1.2, 75.0, TILE_SCALE * MAP_SIZE as f32 * 1.2);
 
 #[derive(Debug, States, Default, Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub enum AppState {
@@ -33,6 +34,7 @@ pub fn setup(
                 scaling_mode: ScalingMode::FixedVertical { viewport_height: 10.0 * TILE_SCALE },
                 ..OrthographicProjection::default_3d()
             }),
-        Transform::from_xyz(120.0, 75.0, 120.0).looking_at(Vec3::ZERO, Vec3::Y),
+            DEFAULT_CAMERA.clone()
+                .looking_at(Vec3::ZERO, Vec3::Y),
     ));
 }

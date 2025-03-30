@@ -19,7 +19,7 @@ fn main() {
             WorldInspectorPlugin::new(),
         ))
         .init_state::<AppState>()
-        .insert_resource(ClearColor(Color::srgb(0.1,0.1,0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.53,0.80,0.922)))
         .add_systems(PreStartup, setup)
         .add_systems(Update, toggle_debug.run_if(input_just_pressed(KeyCode::Space)))
         .run(); 

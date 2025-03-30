@@ -18,8 +18,8 @@ pub enum TileType {
     Tower(TowerType),
 }
 
-// #[derive(Debug, Component, Clone, PartialEq, Eq)]
-// pub struct TileId(IVec2);
+#[derive(Debug, Component, Clone, PartialEq, Eq)]
+pub struct TileLocation(IVec2);
 
 #[derive(Debug, Clone, States, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 enum MapState {
@@ -78,7 +78,7 @@ impl Plugin for Tilemap {
 
 fn spawn_map(
     mut commands: Commands,
-    mut cam_query: Query<&mut Camera, With<Camera3d>>,
+    mut cam_query: Query<(&mut Camera, &mut Transform), With<Camera3d>>,
     mut ev_start_game: EventReader<StartGameEvent>,
     gtm: Res<GameTilemap>,
     map_state: Res<State<MapState>>,
@@ -89,8 +89,6 @@ fn spawn_map(
     for _ev in ev_start_game.read() {
         if map_state.as_ref() != &MapState::Spawned {
             info!("Spawning Map..");
-
-            cam_query.single_mut().is_active = true;
 
             // Spawn Ground Tiles
             let map = gtm.0.clone();
@@ -116,6 +114,7 @@ fn spawn_map(
                         Mesh3d(meshes.add(Cuboid::new(1.0 * TILE_SCALE, 0.1, 1.0 * TILE_SCALE))),
                         MeshMaterial3d(materials.add(tile_color)),
                         Transform::from_xyz(v.x as f32 * TILE_SCALE, 0.0, v.y as f32 * TILE_SCALE),
+                        TileLocation(IVec2::new(v.x, v.y)),
                         tile.clone(),
                     ))
                     // .observe(|trigger: Trigger<Pointer<Click>>| { info!("{:?} was clicked!", trigger.target)})

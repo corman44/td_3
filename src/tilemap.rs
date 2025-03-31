@@ -78,7 +78,6 @@ impl Plugin for Tilemap {
 
 fn spawn_map(
     mut commands: Commands,
-    mut cam_query: Query<(&mut Camera, &mut Transform), With<Camera3d>>,
     mut ev_start_game: EventReader<StartGameEvent>,
     gtm: Res<GameTilemap>,
     map_state: Res<State<MapState>>,

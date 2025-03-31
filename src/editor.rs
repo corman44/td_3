@@ -1,11 +1,7 @@
-
-use std::ops::Deref;
-
 use bevy::prelude::*;
 
-use crate::{tilemap::{GameTilemap, MAP_SIZE, TILE_SCALE}, AppState};
+use crate::{tilemap::GameTilemap, AppState};
 
-// TODO pan camera on a curve from "Game View" (IsoMetric Angled) to "Editor View" (top down)
 // TODO create UI Buttons for selecting type of path (Verical, Horizontal, corners, etc)
 // TODO add functionality to place the paths on existing
 // TODO add save functionality (and define format)
@@ -29,21 +25,15 @@ impl Plugin for Editor {
 /// Setup Map Editor
 fn setup(
     app_state: Res<State<AppState>>,
-    mut camera_q: Query<&mut Transform, With<Camera>>,
     mut commands: Commands,
     mut gtm: ResMut<GameTilemap>,
 ) {
     if app_state.is_changed() && &AppState::InEditor == app_state.get() {
         // transition to InEditor detected, launch editor
         info!("Launching Editor");
+        
+        // Reset Map and Redraw it
         gtm.reset_map();
-
-        // Pan Camera towards middle of map
-        let middle = Vec2::new(MAP_SIZE as f32 * TILE_SCALE / 2. , MAP_SIZE as f32 * TILE_SCALE / 2.);
-        let mut cam = camera_q.single_mut();
-       *cam = Transform::from_xyz( middle.x, MAP_SIZE as f32 * TILE_SCALE, middle.y).looking_at(Vec3::new(middle.x, 0.0, middle.y), Vec3::Y );
-
-       // Reset Map and Redraw it
 
     }
 }

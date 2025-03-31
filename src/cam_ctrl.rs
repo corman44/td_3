@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{animation::{animated_field, AnimationTarget, AnimationTargetId}, math::vec3, prelude::*, render::camera::ScalingMode};
 
 use crate::tilemap::{MAP_SIZE, TILE_SCALE};
@@ -27,22 +29,26 @@ fn setup(
     let mut animation_clip = AnimationClip::default();
     let animation_domain = interval(1.0, 7.0).unwrap();
     let animation_target_name1 = Name::new("PanToEditor");
-    let animation_target_name2 = Name::new("RotateToEditor");
     let animation_target_id1 = AnimationTargetId::from_name(&animation_target_name1);
-    let animation_target_id2 = AnimationTargetId::from_name(&animation_target_name2);
 
 
     let trans_curve1 = EasingCurve::new(
         vec3(CAMERA_START_LOC.translation.x, CAMERA_START_LOC.translation.y, CAMERA_START_LOC.translation.z),
-        vec3(CAMERA_EDITOR_LOC.translation.x, CAMERA_EDITOR_LOC.translation.y, CAMERA_EDITOR_LOC.translation.z),
+        // vec3(CAMERA_EDITOR_LOC.translation.x, CAMERA_EDITOR_LOC.translation.y, CAMERA_EDITOR_LOC.translation.z),
+        vec3(0.0,50.,0.0),
         EaseFunction::QuadraticInOut
     )
         .ping_pong()
-        .expect("curve is domain bounded, shouldn't fail").reparametrize_linear(animation_domain).expect("curve is domain-bouded, shouldn't fail");
+        .expect("curve is domain bounded, shouldn't fail")
+        .reparametrize_linear(animation_domain)
+        .expect("curve is domain-bouded, shouldn't fail");
+
+    let mut editor_quat = CAMERA_EDITOR_LOC.clone().looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), -Vec3::Z);
+    // editor_quat.rotate_y(PI/2.);
 
     let rot_curve1 = EasingCurve::new(
         CAMERA_START_LOC.clone().looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y).rotation.normalize(),
-        CAMERA_EDITOR_LOC.clone().looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y).rotation.normalize(),
+        editor_quat.rotation,
         EaseFunction::QuadraticInOut,
     )
         .ping_pong()
@@ -55,7 +61,7 @@ fn setup(
         AnimatableCurve::new(animated_field!(Transform::translation), trans_curve1),
     );
     animation_clip.add_curve_to_target(
-        animation_target_id2,
+        animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::rotation), rot_curve1),
     );
 
@@ -79,8 +85,8 @@ fn setup(
                 scaling_mode: ScalingMode::FixedVertical { viewport_height: 10.0 * TILE_SCALE },
                 ..OrthographicProjection::default_3d()
             }),
-            CAMERA_START_LOC.clone()
-                .looking_at(Vec3::new(CAMERA_EDITOR.x , 0.0, CAMERA_EDITOR.z ), Vec3::Y),
+        CAMERA_START_LOC.clone()
+            .looking_at(Vec3::new(CAMERA_EDITOR.x , 0.0, CAMERA_EDITOR.z ), Vec3::Y),
         animation_target_name1,
         animation_player,        
         AnimationGraphHandle(animation_graph_handle)
@@ -89,12 +95,6 @@ fn setup(
     commands.entity(cam_id).insert(
         AnimationTarget {
             id: animation_target_id1,
-            player: cam_id,
-        }
-    );
-    commands.entity(cam_id).insert(
-        AnimationTarget {
-            id: animation_target_id2,
             player: cam_id,
         }
     );

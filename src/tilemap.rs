@@ -6,7 +6,7 @@ pub const GROUND_TILE_COLOR: Color = Color::srgb(0.15, 0.75, 0.25);
 pub const ENEMY_TILE_COLOR: Color = Color::srgb(0.75, 0.35, 0.25);
 pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
 pub const TILE_SCALE: f32 = 10.0;
-pub const MAP_SIZE: i32 = 10;
+pub const MAP_SIZE: i32 = 12;
 
 /// enum for tile types
 #[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy)]
@@ -174,8 +174,9 @@ fn setup_tilemap(
         IVec2::new(5, 6),
         IVec2::new(5, 7),
         IVec2::new(5, 8),
+        IVec2::new(6, 8),
+        IVec2::new(7, 8),
         IVec2::new(8, 8),
-        
     ]);
 
     if enemy_path.0.is_none() {

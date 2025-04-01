@@ -2,7 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::{animation::{animated_field, AnimationTarget, AnimationTargetId}, math::vec3, prelude::*, render::camera::ScalingMode};
 
-use crate::tilemap::{MAP_SIZE, TILE_SCALE};
+use crate::{tilemap::{MAP_SIZE, TILE_SCALE}, AppState};
 
 pub const CAMERA_START: Vec3 = Vec3::new(TILE_SCALE * MAP_SIZE as f32 * 1.2, TILE_SCALE * MAP_SIZE as f32 * 0.75, TILE_SCALE * MAP_SIZE as f32 * 1.2);
 pub const CAMERA_START_LOC: Transform = Transform::from_xyz(CAMERA_START.x, CAMERA_START.y, CAMERA_START.z);
@@ -15,7 +15,7 @@ impl Plugin for CamCtrl {
     fn build(&self, app: &mut App) {
         app
             .add_systems(PreStartup, setup)
-            .add_systems(Update, cam_move_edit)
+            .add_systems(OnEnter(AppState::InEditor), cam_move_edit)
             ;
     }
 }
@@ -27,15 +27,14 @@ fn setup(
 ) {
     // Setup Camera Curve Transition Animations
     let mut animation_clip = AnimationClip::default();
-    let animation_domain = interval(1.0, 7.0).unwrap();
+    let animation_domain = interval(1.0, 8.0).unwrap();
     let animation_target_name1 = Name::new("PanToEditor");
     let animation_target_id1 = AnimationTargetId::from_name(&animation_target_name1);
 
 
     let trans_curve1 = EasingCurve::new(
         vec3(CAMERA_START_LOC.translation.x, CAMERA_START_LOC.translation.y, CAMERA_START_LOC.translation.z),
-        // vec3(CAMERA_EDITOR_LOC.translation.x, CAMERA_EDITOR_LOC.translation.y, CAMERA_EDITOR_LOC.translation.z),
-        vec3(0.0,50.,0.0),
+        vec3(CAMERA_EDITOR_LOC.translation.x, CAMERA_EDITOR_LOC.translation.y, CAMERA_EDITOR_LOC.translation.z - TILE_SCALE / 2.),
         EaseFunction::QuadraticInOut
     )
         .ping_pong()
@@ -82,7 +81,7 @@ fn setup(
         Camera::default(),
         Projection::Orthographic(
             OrthographicProjection {
-                scaling_mode: ScalingMode::FixedVertical { viewport_height: 10.0 * TILE_SCALE },
+                scaling_mode: ScalingMode::FixedVertical { viewport_height: TILE_SCALE * MAP_SIZE as f32},
                 ..OrthographicProjection::default_3d()
             }),
         CAMERA_START_LOC.clone()
@@ -105,7 +104,7 @@ fn cam_move_edit(
     mut cam_anim_q: Query<&mut AnimationPlayer, With<Camera>>,
 ) {
     // TODO move to Editor Pos if AppState::InEditor
-    if buttons.just_pressed(KeyCode::Space) {
+    // if buttons.just_pressed(KeyCode::Space) {
         let mut cam_anims = cam_anim_q.single_mut();
         if cam_anims.all_paused() {
             //let idx = cam_anims.stop
@@ -113,5 +112,5 @@ fn cam_move_edit(
         } else {
             cam_anims.pause_all();
         }
-    }
+    // }
 }

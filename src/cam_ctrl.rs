@@ -45,6 +45,8 @@ fn setup(
     let animation_domain = interval(0.75, 5.5).unwrap();
     let animation_target_name1 = Name::new("PanToEditor");
     let animation_target_id1 = AnimationTargetId::from_name(&animation_target_name1);
+    let animation_target_name2 = Name::new("PanToGame");
+    let animation_target_id2 = AnimationTargetId::from_name(&animation_target_name2);
     let easing = EaseFunction::QuadraticInOut;
 
     let trans_curve1 = EasingCurve::new(
@@ -60,12 +62,12 @@ fn setup(
         ),
         easing,
     )
-    // .ping_pong()
-    // .expect("curve is domain bounded, shouldn't fail")
     .reparametrize_linear(animation_domain)
     .expect("curve is domain-bouded, shouldn't fail");
 
-    let mut editor_quat = CAMERA_EDITOR_LOC
+    let trans_curve2 = trans_curve1.clone().reverse().expect("Expecting reverse possible.");
+
+    let editor_quat = CAMERA_EDITOR_LOC
         .clone()
         .looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), -Vec3::Z);
 
@@ -78,10 +80,10 @@ fn setup(
         editor_quat.rotation,
         easing,
     )
-    // .ping_pong()
-    // .expect("curve is domain bounded, shouldn't fail")
     .reparametrize_linear(animation_domain)
     .expect("shouldn't fail...");
+
+    let rot_curve2 = rot_curve1.clone().reverse().expect("Expecting reverse possible.");
 
     animation_clip.add_curve_to_target(
         animation_target_id1,
@@ -91,13 +93,21 @@ fn setup(
         animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::rotation), rot_curve1),
     );
+    animation_clip.add_curve_to_target(
+        animation_target_id2,
+        AnimatableCurve::new(animated_field!(Transform::translation), trans_curve2),
+    );
+    animation_clip.add_curve_to_target(
+        animation_target_id2,
+        AnimatableCurve::new(animated_field!(Transform::rotation), rot_curve2),
+    );
 
     let animation_clip_handle = animation_clips.add(animation_clip);
 
     let (animation_graph, animation_node_index) = AnimationGraph::from_clip(animation_clip_handle);
 
     let mut animation_player = AnimationPlayer::default();
-    animation_player.play(animation_node_index).repeat().pause();
+    animation_player.play(animation_node_index).pause();
 
     let animation_graph_handle = animation_graphs.add(animation_graph);
 
@@ -116,6 +126,7 @@ fn setup(
                 .clone()
                 .looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y),
             animation_target_name1,
+            animation_target_name2,
             animation_player,
             AnimationGraphHandle(animation_graph_handle),
         ))
@@ -125,13 +136,18 @@ fn setup(
         id: animation_target_id1,
         player: cam_id,
     });
+    commands.entity(cam_id).insert(AnimationTarget {
+        id: animation_target_id2,
+        player: cam_id,
+    });
 }
 
 fn cam_move_edit(
     buttons: Res<ButtonInput<KeyCode>>,
-    mut cam_anim_q: Query<&mut AnimationPlayer, With<Camera>>,
+    mut cam_anim_q: Query<(&mut AnimationPlayer, &AnimationTarget), With<Camera>>,
 ) {
-    let mut cam_anims = cam_anim_q.single_mut();
+    let (mut cam_anims, anim_target) = cam_anim_q.single_mut();
+    // TODO determine if going to Editor or Going to Game
     if cam_anims.all_paused() {
         //let idx = cam_anims.stop
         cam_anims.resume_all();

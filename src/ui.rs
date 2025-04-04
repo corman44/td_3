@@ -53,14 +53,20 @@ fn display_menu(
     info!("Displayng Menu");
     // Spawn Game Button
     commands
-        .spawn(Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            column_gap: Val::Px(10.0),
-            ..default()
-        })
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Px(10.0),
+                ..default()
+            },
+            PickingBehavior {
+                should_block_lower: true,
+                ..default()
+            }
+        ))
         .with_children(|parent| {
             parent.spawn((
                 Button,

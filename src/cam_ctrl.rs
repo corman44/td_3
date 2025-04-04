@@ -1,4 +1,6 @@
 
+use std::ops::Deref;
+
 use bevy::{
     animation::{AnimationTarget, AnimationTargetId, animated_field},
     math::vec3,
@@ -26,12 +28,29 @@ pub const CAMERA_EDITOR: Vec3 = Vec3::new(
 pub const CAMERA_EDITOR_LOC: Transform =
     Transform::from_xyz(CAMERA_EDITOR.x, CAMERA_EDITOR.y, CAMERA_EDITOR.z);
 
+#[derive(Debug, Clone, Default, States, PartialEq, Eq, Hash)]
+pub enum CamState {
+    #[default]
+    GameView,
+    EditorView,
+    Moving(CamMoveDir),
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum CamMoveDir {
+    MoveToEditor,
+    MoveToGame,
+}
+
 pub struct CamCtrl;
 
 impl Plugin for CamCtrl {
     fn build(&self, app: &mut App) {
-        app.add_systems(PreStartup, setup)
-            .add_systems(OnEnter(AppState::InEditor), cam_move_edit);
+        app
+            .init_state::<CamState>()
+            .add_systems(PreStartup, setup)
+            .add_systems(OnEnter(AppState::InEditor), cam_move_edit)
+            .add_systems(OnEnter(AppState::InGame), cam_move_game);
     }
 }
 
@@ -126,7 +145,7 @@ fn setup(
                 .clone()
                 .looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y),
             animation_target_name1,
-            animation_target_name2,
+            // animation_target_name2,
             animation_player,
             AnimationGraphHandle(animation_graph_handle),
         ))
@@ -144,14 +163,42 @@ fn setup(
 
 fn cam_move_edit(
     buttons: Res<ButtonInput<KeyCode>>,
-    mut cam_anim_q: Query<(&mut AnimationPlayer, &AnimationTarget), With<Camera>>,
+    mut cam_player: Query<&mut AnimationPlayer, With<Camera>>,
+    mut anim_target: Query<&AnimationTarget, With<Camera>>,
+    mut cam_nextstate: ResMut<NextState<CamState>>,
+    cam_state: ResMut<State<CamState>>,
 ) {
-    let (mut cam_anims, anim_target) = cam_anim_q.single_mut();
-    // TODO determine if going to Editor or Going to Game
-    if cam_anims.all_paused() {
-        //let idx = cam_anims.stop
-        cam_anims.resume_all();
-    } else {
-        cam_anims.pause_all();
+    if cam_state.get() != &CamState::EditorView && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor) {
+        // Not in EditorView or Moving to it, can move cam
+        // TODO find animation player with the target name "PanToEditor" 
+        let player = cam_player.single_mut();
+        for target in anim_target.iter_mut() {
+            let name = Name::from("PanToEditor");
+            if target.id == AnimationTargetId::from_name(&name) {
+                player.play(target.player);
+            }
+
+        }
+
+        // let (mut cam_anims, anim_target) = cam_anim_q.single_mut();
+        // if cam_anims.all_paused() {
+            // //let idx = cam_anims.stop
+            // cam_anims.resume_all();
+        // } else {
+            // cam_anims.pause_all();
+        // }
     }
 }
+
+fn cam_move_game(
+    buttons: Res<ButtonInput<KeyCode>>,
+    mut cam_anim_q: Query<(&mut AnimationPlayer, &AnimationTarget), With<Camera>>,
+    mut cam_nextstate: ResMut<NextState<CamState>>,
+    cam_state: ResMut<State<CamState>>,
+) {
+    if cam_state.get() != &CamState::GameView && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
+        // Not in GameView or Moving to it, can move cam
+        // TODO find animation player with the target name "PanToGame" 
+
+    } 
+} 

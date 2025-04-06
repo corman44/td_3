@@ -13,7 +13,6 @@ use crate::{tilemap::GameTilemap, AppState};
 /// Usage
 /// Click a Tile Type (Enemy Path, Free, Rock, Water, etc.) then a small version of that tile follows the cursor while selected
 /// when clicking a tile the tile type is applied 
-
 pub struct Editor;
 
 impl Plugin for Editor {
@@ -30,10 +29,8 @@ fn setup(
 ) {
     if app_state.is_changed() && &AppState::InEditor == app_state.get() {
         // transition to InEditor detected, launch editor
-        info!("Launching Editor");
         
         // Reset Map and Redraw it
         gtm.reset_map();
-
     }
 }

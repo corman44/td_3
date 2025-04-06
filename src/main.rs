@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
-use td_3::{cam_ctrl::CamCtrl, editor::Editor, tilemap::Tilemap, ui::Ui, AppState};
+use td_3::{cam_ctrl::CamCtrl, editor::Editor, game_debug::GameDebug, tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
 // TODO create a level editor (save and loading levels)
@@ -9,8 +9,8 @@ use td_3::{cam_ctrl::CamCtrl, editor::Editor, tilemap::Tilemap, ui::Ui, AppState
 fn main() {
     let _app = App::new()
         .add_plugins((
-            CamCtrl,
             DefaultPlugins,
+            CamCtrl,
             // RapierPhysicsPlugin::<NoUserData>::default(),
             // RapierDebugRenderPlugin::default(),
             Editor,
@@ -18,6 +18,7 @@ fn main() {
             Tilemap,
             Ui,
             WorldInspectorPlugin::new(),
+            GameDebug,
         ))
         .init_state::<AppState>()
         .insert_resource(ClearColor(Color::srgb(0.53,0.80,0.922)))
@@ -26,11 +27,11 @@ fn main() {
 }
 
 
-fn toggle_debug(
-    keeb: Res<ButtonInput<KeyCode>>,
-    mut debug_rend_context: ResMut<DebugRenderContext>,
-) {
-    if keeb.just_pressed(KeyCode::Space) {
-        debug_rend_context.enabled = !debug_rend_context.enabled;
-    }
-}
+// fn toggle_debug(
+    // keeb: Res<ButtonInput<KeyCode>>,
+    // mut debug_rend_context: ResMut<DebugRenderContext>,
+// ) {
+    // if keeb.just_pressed(KeyCode::Space) {
+        // debug_rend_context.enabled = !debug_rend_context.enabled;
+    // }
+// }

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod cam_ctrl;
 pub mod editor;
+pub mod game_debug;
 pub mod tilemap;
 pub mod ui;
 
@@ -12,6 +13,7 @@ pub enum AppState {
    InGame,
    InEditor,
    PauseMenu,
+   Settings,
    Exit, 
 }
 

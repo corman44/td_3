@@ -22,7 +22,7 @@ pub enum TileType {
 pub struct TileLocation(IVec2);
 
 #[derive(Debug, Clone, States, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
-enum MapState {
+pub enum MapState {
     #[default]
     NotSpawned,
     Spawned,
@@ -87,7 +87,6 @@ fn spawn_map(
 ) {
     for _ev in ev_start_game.read() {
         if map_state.as_ref() != &MapState::Spawned {
-            info!("Spawning Map..");
 
             // Spawn Ground Tiles
             let map = gtm.0.clone();
@@ -193,11 +192,11 @@ fn setup_tilemap(
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Path));
         }
     }
-    info!(
-        "Enemy Path len: {}",
-        gtm.0
-            .iter()
-            .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
-            .count()
-    );
+    // info!(
+        // "Enemy Path len: {}",
+        // gtm.0
+            // .iter()
+            // .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
+            // .count()
+    // );
 }

@@ -1,11 +1,9 @@
 
-use std::ops::Deref;
-
 use bevy::{
-    animation::{AnimationTarget, AnimationTargetId, animated_field},
+    animation::{animated_field, graph::AnimationGraph, graph::AnimationGraphHandle, AnimationPlayer, AnimationTarget, AnimationTargetId, AnimationClip},
     math::vec3,
     prelude::*,
-    render::camera::ScalingMode,
+    render::camera::{Camera, OrthographicProjection, Projection, ScalingMode},
 };
 
 use crate::{
@@ -42,6 +40,14 @@ pub enum CamMoveDir {
     MoveToGame,
 }
 
+#[derive(Debug, Resource)]
+struct Animations {
+    animations: Vec<AnimationNodeIndex>,
+    _graph: Handle<AnimationGraph>,
+}
+
+
+
 pub struct CamCtrl;
 
 impl Plugin for CamCtrl {
@@ -50,22 +56,23 @@ impl Plugin for CamCtrl {
             .init_state::<CamState>()
             .add_systems(PreStartup, setup)
             .add_systems(OnEnter(AppState::InEditor), cam_move_edit)
-            .add_systems(OnEnter(AppState::InGame), cam_move_game);
+            .add_systems(OnEnter(AppState::InGame), cam_move_game)
+            // FIXME only run if moving
+            .add_systems(Update, cam_finished);
     }
 }
 
 fn setup(
-    mut animation_graphs: ResMut<Assets<AnimationGraph>>,
     mut animation_clips: ResMut<Assets<AnimationClip>>,
+    mut animation_graphs: ResMut<Assets<AnimationGraph>>,
     mut commands: Commands,
 ) {
     // Setup Camera Curve Transition Animations
-    let mut animation_clip = AnimationClip::default();
+    let mut animation_clip_editor = AnimationClip::default();
+    let mut animation_clip_game = AnimationClip::default();
     let animation_domain = interval(0.75, 5.5).unwrap();
-    let animation_target_name1 = Name::new("PanToEditor");
+    let animation_target_name1 = Name::new("CameraPan");
     let animation_target_id1 = AnimationTargetId::from_name(&animation_target_name1);
-    let animation_target_name2 = Name::new("PanToGame");
-    let animation_target_id2 = AnimationTargetId::from_name(&animation_target_name2);
     let easing = EaseFunction::QuadraticInOut;
 
     let trans_curve1 = EasingCurve::new(
@@ -77,12 +84,12 @@ fn setup(
         vec3(
             CAMERA_EDITOR_LOC.translation.x,
             CAMERA_EDITOR_LOC.translation.y,
-            CAMERA_EDITOR_LOC.translation.z - TILE_SCALE / 2.,
+            CAMERA_EDITOR_LOC.translation.z,
         ),
         easing,
     )
-    .reparametrize_linear(animation_domain)
-    .expect("curve is domain-bouded, shouldn't fail");
+        .reparametrize_linear(animation_domain)
+        .expect("curve is domain-bouded, shouldn't fail");
 
     let trans_curve2 = trans_curve1.clone().reverse().expect("Expecting reverse possible.");
 
@@ -94,8 +101,8 @@ fn setup(
         CAMERA_START_LOC
             .clone()
             .looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y)
-            .rotation
-            .normalize(),
+            .rotation,
+            // .normalize(),
         editor_quat.rotation,
         easing,
     )
@@ -104,31 +111,43 @@ fn setup(
 
     let rot_curve2 = rot_curve1.clone().reverse().expect("Expecting reverse possible.");
 
-    animation_clip.add_curve_to_target(
+    animation_clip_editor.add_curve_to_target(
         animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::translation), trans_curve1),
     );
-    animation_clip.add_curve_to_target(
+    animation_clip_editor.add_curve_to_target(
         animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::rotation), rot_curve1),
     );
-    animation_clip.add_curve_to_target(
-        animation_target_id2,
+    animation_clip_game.add_curve_to_target(
+        animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::translation), trans_curve2),
     );
-    animation_clip.add_curve_to_target(
-        animation_target_id2,
+    animation_clip_game.add_curve_to_target(
+        animation_target_id1,
         AnimatableCurve::new(animated_field!(Transform::rotation), rot_curve2),
     );
 
-    let animation_clip_handle = animation_clips.add(animation_clip);
+    let animation_clip_handle_editor = animation_clips.add(animation_clip_editor);
+    let animation_clip_handle_game = animation_clips.add(animation_clip_game);
 
-    let (animation_graph, animation_node_index) = AnimationGraph::from_clip(animation_clip_handle);
+    let (animation_graph_editor, _animation_node_index_editor) = AnimationGraph::from_clip(animation_clip_handle_editor.clone());
+    let (animation_graph_game, _animation_node_index_game) = AnimationGraph::from_clip(animation_clip_handle_game.clone());
 
-    let mut animation_player = AnimationPlayer::default();
-    animation_player.play(animation_node_index).pause();
+    let (graph, clips) = AnimationGraph::from_clips([
+        animation_clip_handle_game.clone(),
+        animation_clip_handle_editor.clone(),
+    ]);
+    let graph_handle = animation_graphs.add(graph);
+    commands.insert_resource(Animations {
+        animations: clips,
+        _graph: graph_handle.clone(),
+    });
 
-    let animation_graph_handle = animation_graphs.add(animation_graph);
+    let animation_player = AnimationPlayer::default();
+
+    animation_graphs.add(animation_graph_editor.clone());
+    animation_graphs.add(animation_graph_game.clone());
 
     // Spawn 3d Camera
     let cam_id = commands
@@ -144,10 +163,9 @@ fn setup(
             CAMERA_START_LOC
                 .clone()
                 .looking_at(Vec3::new(CAMERA_EDITOR.x, 0.0, CAMERA_EDITOR.z), Vec3::Y),
-            animation_target_name1,
-            // animation_target_name2,
+            animation_target_name1.clone(),
             animation_player,
-            AnimationGraphHandle(animation_graph_handle),
+            AnimationGraphHandle(graph_handle.clone()),
         ))
         .id();
 
@@ -155,50 +173,54 @@ fn setup(
         id: animation_target_id1,
         player: cam_id,
     });
-    commands.entity(cam_id).insert(AnimationTarget {
-        id: animation_target_id2,
-        player: cam_id,
-    });
 }
 
 fn cam_move_edit(
-    buttons: Res<ButtonInput<KeyCode>>,
-    mut cam_player: Query<&mut AnimationPlayer, With<Camera>>,
-    mut anim_target: Query<&AnimationTarget, With<Camera>>,
+    animations: Res<Animations>,
+    mut cam_query: Query<&mut AnimationPlayer, With<Camera>>,
     mut cam_nextstate: ResMut<NextState<CamState>>,
-    cam_state: ResMut<State<CamState>>,
+    cam_state: Res<State<CamState>>,
 ) {
-    if cam_state.get() != &CamState::EditorView && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor) {
-        // Not in EditorView or Moving to it, can move cam
-        // TODO find animation player with the target name "PanToEditor" 
-        let player = cam_player.single_mut();
-        for target in anim_target.iter_mut() {
-            let name = Name::from("PanToEditor");
-            if target.id == AnimationTargetId::from_name(&name) {
-                player.play(target.player);
-            }
-
-        }
-
-        // let (mut cam_anims, anim_target) = cam_anim_q.single_mut();
-        // if cam_anims.all_paused() {
-            // //let idx = cam_anims.stop
-            // cam_anims.resume_all();
-        // } else {
-            // cam_anims.pause_all();
-        // }
+    if cam_state.get() != &CamState::EditorView
+    && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor)
+    && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
+        cam_nextstate.set(CamState::Moving(CamMoveDir::MoveToEditor));
+        let mut player = cam_query.single_mut();
+        player.stop_all();
+        player.play(*animations.animations.get(1).expect("Animations not initatialized properly.. "));
     }
 }
 
 fn cam_move_game(
-    buttons: Res<ButtonInput<KeyCode>>,
-    mut cam_anim_q: Query<(&mut AnimationPlayer, &AnimationTarget), With<Camera>>,
+    animations: Res<Animations>,
+    mut cam_query: Query<&mut AnimationPlayer, With<Camera>>,
     mut cam_nextstate: ResMut<NextState<CamState>>,
-    cam_state: ResMut<State<CamState>>,
+    cam_state: Res<State<CamState>>,
 ) {
-    if cam_state.get() != &CamState::GameView && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
-        // Not in GameView or Moving to it, can move cam
-        // TODO find animation player with the target name "PanToGame" 
+    if cam_state.get() != &CamState::GameView 
+    && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor)
+    && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
+        cam_nextstate.set(CamState::Moving(CamMoveDir::MoveToGame));
+        let mut player = cam_query.single_mut();
+        player.stop_all();
+        player.play(*animations.animations.get(0).expect("Animations not initatialized properly.. "));
+    }
+}
 
-    } 
-} 
+fn cam_finished(
+    cam_state: Res<State<CamState>>,
+    mut cam_nextstate: ResMut<NextState<CamState>>,
+    cam_query: Query<&AnimationPlayer, With<Camera>>
+) {
+    if cam_query.single().all_finished() {
+        match cam_state.get() {
+            CamState::Moving(cam_move_dir) => {
+                match cam_move_dir {
+                    CamMoveDir::MoveToEditor => cam_nextstate.set(CamState::EditorView),
+                    CamMoveDir::MoveToGame => cam_nextstate.set(CamState::GameView),
+                }
+            },
+            _ => (),
+        }
+    }
+}

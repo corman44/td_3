@@ -121,7 +121,6 @@ fn menu_button_system(
     >,
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
-    keeb: Res<ButtonInput<KeyCode>>, 
     mut nodes: Query<&mut Node>,
 ) {
     for (interaction, mut color, button_type, mut vis) in buttons.iter_mut() {
@@ -130,16 +129,18 @@ fn menu_button_system(
                 *color = PRESSED_BUTTON.into();
                 match button_type {
                     ButtonType::StartGame => {
-                        info!("Starting Game!");
+                        // info!("Starting Game!");
                         app_state.set(AppState::InGame);
                         ev_desp_menu.send(StartGameEvent);
                         despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Settings => {
-                        info!("Settings");
+                        // info!("Settings");
+                        app_state.set(AppState::Settings);
+                        despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::LevelEdit => {
-                        info!("Level Editting");
+                        // info!("Level Editting");
                         app_state.set(AppState::InEditor); 
                         despawn_menu(&mut nodes, &mut vis);
                     }
@@ -158,19 +159,13 @@ fn menu_button_system(
             }
         }
     }
-
-    if keeb.just_pressed(KeyCode::KeyG) {
-        info!("Starting Game!");
-        app_state.set(AppState::InGame);
-        ev_desp_menu.send(StartGameEvent);
-    }
 }
 
 /// Hide buttons and UI Nodes
 fn despawn_menu(
     // mut buttons: &mut Query<&mut Visibility, With<Button>>,
-    mut nodes: &mut Query<&mut Node>,
-    mut vis: &mut Mut< '_, Visibility>,
+    nodes: &mut Query<&mut Node>,
+    vis: &mut Mut< '_, Visibility>,
 ) {
     vis.toggle_visible_hidden();
     for mut each in nodes.iter_mut() {

@@ -2,11 +2,14 @@ use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 
 use crate::{AppState, StartGameEvent};
 
-const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 pub struct Ui;
+
+#[derive(Debug, Component)]
+struct MenuUI;
 
 impl Plugin for Ui {
     fn build(&self, app: &mut App) {
@@ -34,7 +37,7 @@ impl Plugin for Ui {
 fn pause_menu(
     mut app_state: ResMut<NextState<AppState>>,
     mut buttons: Query<&mut Visibility, With<Button>>,
-    mut nodes: Query<&mut Node>,
+    mut nodes: Query<&mut Node, With<MenuUI>>,
 ) {
     app_state.set(AppState::PauseMenu);
     for mut node in nodes.iter_mut() {
@@ -65,7 +68,8 @@ fn display_menu(
             PickingBehavior {
                 should_block_lower: true,
                 ..default()
-            }
+            },
+            MenuUI,
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -121,7 +125,7 @@ fn menu_button_system(
     >,
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
-    mut nodes: Query<&mut Node>,
+    mut nodes: Query<&mut Node, With<MenuUI>>,
 ) {
     for (interaction, mut color, button_type, mut vis) in buttons.iter_mut() {
         match *interaction {
@@ -164,7 +168,7 @@ fn menu_button_system(
 /// Hide buttons and UI Nodes
 fn despawn_menu(
     // mut buttons: &mut Query<&mut Visibility, With<Button>>,
-    nodes: &mut Query<&mut Node>,
+    nodes: &mut Query<&mut Node, With<MenuUI>>,
     vis: &mut Mut< '_, Visibility>,
 ) {
     vis.toggle_visible_hidden();

@@ -65,7 +65,7 @@ fn display_menu(
                 column_gap: Val::Px(10.0),
                 ..default()
             },
-            PickingBehavior {
+            Pickable {
                 should_block_lower: true,
                 ..default()
             },
@@ -79,6 +79,7 @@ fn display_menu(
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
+                MenuUI,
             ));
             parent.spawn((
                 Button,
@@ -87,6 +88,7 @@ fn display_menu(
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
+                MenuUI,
             ));
             // Spawn Settings Button
             parent.spawn((
@@ -96,6 +98,7 @@ fn display_menu(
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
+                MenuUI,
             ));
             // Spawn Exit Button
             parent.spawn((
@@ -105,6 +108,7 @@ fn display_menu(
                 BorderColor(Color::BLACK),
                 BorderRadius::MAX,
                 BackgroundColor(NORMAL_BUTTON),
+                MenuUI,
             ));
         });
 }
@@ -121,7 +125,7 @@ fn menu_button_system(
     mut app_state: ResMut<NextState<AppState>>,
     mut buttons: Query<
         (&Interaction, &mut BackgroundColor, &ButtonType, &mut Visibility),
-        (Changed<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>, With<MenuUI>),
     >,
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
@@ -134,7 +138,7 @@ fn menu_button_system(
                 match button_type {
                     ButtonType::StartGame => {
                         // info!("Starting Game!");
-                        app_state.set(AppState::InGame);
+                        app_state.set(AppState::ToGame);
                         ev_desp_menu.send(StartGameEvent);
                         despawn_menu(&mut nodes, &mut vis);
                     }
@@ -145,7 +149,7 @@ fn menu_button_system(
                     }
                     ButtonType::LevelEdit => {
                         // info!("Level Editting");
-                        app_state.set(AppState::InEditor); 
+                        app_state.set(AppState::ToEditor); 
                         despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Exit => {

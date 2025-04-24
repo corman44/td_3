@@ -18,6 +18,7 @@ pub const CAMERA_START: Vec3 = Vec3::new(
 );
 pub const CAMERA_START_LOC: Transform =
     Transform::from_xyz(CAMERA_START.x, CAMERA_START.y, CAMERA_START.z);
+
 pub const CAMERA_EDITOR: Vec3 = Vec3::new(
     MAP_SIZE as f32 * TILE_SCALE / 2.,
     MAP_SIZE as f32 * TILE_SCALE,
@@ -55,10 +56,11 @@ impl Plugin for CamCtrl {
         app
             .init_state::<CamState>()
             .add_systems(PreStartup, setup)
-            .add_systems(OnEnter(AppState::InEditor), cam_move_edit)
-            .add_systems(OnEnter(AppState::InGame), cam_move_game)
-            // FIXME only run if moving
-            .add_systems(Update, cam_finished);
+            .add_systems(OnEnter(AppState::ToEditor), cam_move_edit)
+            .add_systems(OnEnter(AppState::ToGame), cam_move_game)
+            .add_systems(Update, cam_finished.run_if(
+                in_state(CamState::Moving(CamMoveDir::MoveToEditor))
+                .or(in_state(CamState::Moving(CamMoveDir::MoveToGame)))));
     }
 }
 
@@ -84,7 +86,7 @@ fn setup(
         vec3(
             CAMERA_EDITOR_LOC.translation.x,
             CAMERA_EDITOR_LOC.translation.y,
-            CAMERA_EDITOR_LOC.translation.z,
+            CAMERA_EDITOR_LOC.translation.z - TILE_SCALE / 2.,
         ),
         easing,
     )
@@ -185,7 +187,7 @@ fn cam_move_edit(
     && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor)
     && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
         cam_nextstate.set(CamState::Moving(CamMoveDir::MoveToEditor));
-        let mut player = cam_query.single_mut();
+        let mut player = cam_query.single_mut().expect("Camera not found.. ");
         player.stop_all();
         player.play(*animations.animations.get(1).expect("Animations not initatialized properly.. "));
     }
@@ -201,23 +203,30 @@ fn cam_move_game(
     && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor)
     && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToGame) {
         cam_nextstate.set(CamState::Moving(CamMoveDir::MoveToGame));
-        let mut player = cam_query.single_mut();
+        let mut player = cam_query.single_mut().expect("Camera not found.. ");
         player.stop_all();
         player.play(*animations.animations.get(0).expect("Animations not initatialized properly.. "));
     }
 }
 
 fn cam_finished(
+    mut app_nextstate: ResMut<NextState<AppState>>,
     cam_state: Res<State<CamState>>,
     mut cam_nextstate: ResMut<NextState<CamState>>,
     cam_query: Query<&AnimationPlayer, With<Camera>>
 ) {
-    if cam_query.single().all_finished() {
+    if cam_query.single().expect("No Anim Player..").all_finished() {
         match cam_state.get() {
             CamState::Moving(cam_move_dir) => {
                 match cam_move_dir {
-                    CamMoveDir::MoveToEditor => cam_nextstate.set(CamState::EditorView),
-                    CamMoveDir::MoveToGame => cam_nextstate.set(CamState::GameView),
+                    CamMoveDir::MoveToEditor => {
+                        cam_nextstate.set(CamState::EditorView);
+                        app_nextstate.set(AppState::InEditor);
+                    },
+                    CamMoveDir::MoveToGame => {
+                        cam_nextstate.set(CamState::GameView);
+                        app_nextstate.set(AppState::InGame);
+                    },
                 }
             },
             _ => (),

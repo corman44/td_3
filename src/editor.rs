@@ -1,8 +1,7 @@
-use bevy::prelude::*;
+use bevy::{input::mouse::MouseMotion, prelude::*};
 
-use crate::{tilemap::GameTilemap, ui::NORMAL_BUTTON, AppState};
+use crate::{tilemap::GameTilemap, AppState};
 
-// TODO create UI Buttons for selecting type of path (Verical, Horizontal, corners, etc)
 // TODO add functionality to place the paths on existing
 // TODO add save functionality (and define format)
 // TODO don't allow saving unless a path is defined
@@ -10,6 +9,15 @@ use crate::{tilemap::GameTilemap, ui::NORMAL_BUTTON, AppState};
     // TODO display message of reason for failed save
 // TODO add Load Map functionality 
 
+pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
+pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
+#[derive(Debug, Component)]
+struct EditorUI;
+
+#[derive(Debug, Component)]
+struct MiniTile;
 
 #[derive(Debug, Component)]
 pub enum TilePath {
@@ -28,7 +36,8 @@ pub struct Editor;
 
 impl Plugin for Editor {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, setup);
+        app.add_systems(Update, setup)
+            .add_systems(Update, editor_buttons.run_if(in_state(AppState::InEditor)));
     }
 }
 
@@ -129,5 +138,52 @@ fn setup(
         
         // Reset Map and Redraw it
         gtm.reset_map();
+    }
+}
+
+fn editor_buttons(
+    mut commands: Commands,
+    mut buttons: Query<(&TilePath, &mut BackgroundColor, &Interaction), (Changed<Interaction>, With<EditorUI>, With<Button>)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for (tile_path, mut color, interaction) in buttons.iter_mut() {
+        match interaction {
+            Interaction::Pressed => {
+                // TODO create 'mini' tile that follows the cursor
+                spawn_minitile(&mut commands, &mut meshes, tile_path);
+            }
+            Interaction::Hovered => {
+                *color = BackgroundColor(HOVERED_BUTTON);
+            }
+            Interaction::None => {
+                commands.insert_resource(ClearColor(NORMAL_BUTTON));
+            }
+        }
+    }
+}
+
+fn spawn_minitile(
+    mut commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    tile_path: &TilePath,
+) {
+    commands.spawn((
+        Mesh2d::from(meshes.add(Rectangle::new(2., 2.))),
+        Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+        // MiniTile,
+        // tile_path.clone(),
+    ));
+}
+
+fn minitile_cursor_follow(
+    mut cursor_mover: Query<&mut Transform, With<MiniTile>>,
+    mut cursor_pos: EventReader<MouseMotion>,
+) {
+    for ev in cursor_pos.read() {
+        
+    }
+    for mut transform in cursor_mover.iter_mut() {
+        transform.translation.x += cursor_pos.read().next().unwrap().delta.x;
+        transform.translation.z += cursor_pos.read().next().unwrap().delta.y;
     }
 }

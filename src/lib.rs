@@ -14,6 +14,8 @@ pub enum AppState {
    InEditor,
    PauseMenu,
    Settings,
+   ToEditor,
+   ToGame,
    Exit, 
 }
 

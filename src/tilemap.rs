@@ -87,10 +87,9 @@ fn spawn_map(
 ) {
     for _ev in ev_start_game.read() {
         if map_state.as_ref() != &MapState::Spawned {
-
             // Spawn Ground Tiles
             let map = gtm.0.clone();
-            // let size = gtm.1;
+
             for (v, tile) in map.iter() {
                 let tile_color: Color;
                 match tile {
@@ -107,6 +106,7 @@ fn spawn_map(
                         tile_color = GROUND_TILE_COLOR;
                     }
                 }
+
                 commands
                     .spawn((
                         Mesh3d(meshes.add(Cuboid::new(1.0 * TILE_SCALE, 0.1, 1.0 * TILE_SCALE))),
@@ -119,35 +119,43 @@ fn spawn_map(
                     .observe(recolor::<Pointer<Over>>(0.15))
                     .observe(recolor::<Pointer<Out>>(0.0));
 
-            // Spawn Ambient Light
-            commands.insert_resource(AmbientLight {
-                color: Color::WHITE,
-                brightness: 1000.0,
-            });
+                // Spawn Ambient Light
+                commands.insert_resource(AmbientLight {
+                    color: Color::WHITE,
+                    brightness: 1000.0,
+                    ..default()
+                });
 
-            next_map_state.set(MapState::Spawned);
+                next_map_state.set(MapState::Spawned);
+            }
         }
     }
-}
 }
 
 /// Scale color up and down
 fn recolor<E>(
-   scale: f32 
-) -> impl Fn(Trigger<E>, Query<&mut MeshMaterial3d<StandardMaterial>>, ResMut<Assets<StandardMaterial>>, Query<&TileType>) {
+    scale: f32,
+) -> impl Fn(
+    Trigger<E>,
+    Query<&mut MeshMaterial3d<StandardMaterial>>,
+    ResMut<Assets<StandardMaterial>>,
+    Query<&TileType>,
+) {
     move |trigger, mut query, mut materials, tile_type| {
+        let ent = trigger.target();
+        let mut mat = query
+            .get_mut(ent)
+            .expect(&format!("Expected material found in Entity: {:?}", ent));
+        let tile_type = tile_type
+            .get(ent)
+            .expect(&format!("no TileType found for Entity: {:?}", ent));
 
-        let ent = trigger.entity();
-        let mut mat = query.get_mut(ent).expect(&format!("Expected material found in Entity: {:?}", ent));
-        let tile_type = tile_type.get(ent).expect(&format!("no TileType found for Entity: {:?}",ent));
-        
         match tile_type {
             TileType::EnemyMap(_enemy_tile) => {
                 mat.0 = materials.add(ENEMY_TILE_COLOR.darker(scale));
-            },
+            }
             _ => {
                 mat.0 = materials.add(GROUND_TILE_COLOR.darker(scale));
-
             }
         }
     }
@@ -156,10 +164,7 @@ fn recolor<E>(
 #[derive(Debug, Resource, Clone)]
 pub struct EnemyPath(Option<Vec<IVec2>>);
 
-fn setup_tilemap(
-    mut gtm: ResMut<GameTilemap>,
-    mut enemy_path: ResMut<EnemyPath>,
-) {
+fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>) {
     let default_path = Some(vec![
         IVec2::new(1, 1),
         IVec2::new(1, 2),
@@ -192,11 +197,12 @@ fn setup_tilemap(
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Path));
         }
     }
+
     // info!(
-        // "Enemy Path len: {}",
-        // gtm.0
-            // .iter()
-            // .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
-            // .count()
+    // "Enemy Path len: {}",
+    // gtm.0
+    // .iter()
+    // .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
+    // .count()
     // );
 }

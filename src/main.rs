@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier3d::prelude::*;
 use td_3::{cam_ctrl::CamCtrl, editor::Editor, game_debug::GameDebug, tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
@@ -17,7 +16,7 @@ fn main() {
             MeshPickingPlugin,
             Tilemap,
             Ui,
-            WorldInspectorPlugin::new(),
+            // WorldInspectorPlugin::new(),
             GameDebug,
         ))
         .init_state::<AppState>()
@@ -25,13 +24,3 @@ fn main() {
         // .add_systems(Update, toggle_debug.run_if(input_just_pressed(KeyCode::Space)))
         .run(); 
 }
-
-
-// fn toggle_debug(
-    // keeb: Res<ButtonInput<KeyCode>>,
-    // mut debug_rend_context: ResMut<DebugRenderContext>,
-// ) {
-    // if keeb.just_pressed(KeyCode::Space) {
-        // debug_rend_context.enabled = !debug_rend_context.enabled;
-    // }
-// }

@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.15.3", features = ["bevy_mesh_picking_backend"] }
-bevy_picking = { version = "0.15.3"}
+bevy = { version = "0.16.0", features = ["bevy_mesh_picking_backend"] }
+bevy_picking = { version = "0.16.0"}
 glam = { version = "0.30"}
 bevy_rapier3d ={ version = "*", features = [ "simd-stable", "debug-render-3d" ]}
 bevy-inspector-egui = "0.30.0"

@@ -70,47 +70,45 @@ fn display_menu(
                 ..default()
             },
             MenuUI,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Button,
-                ButtonType::StartGame,
-                Text::new("Start Game"),
-                BorderColor(Color::BLACK),
-                BorderRadius::MAX,
-                BackgroundColor(NORMAL_BUTTON),
-                MenuUI,
-            ));
-            parent.spawn((
-                Button,
-                ButtonType::LevelEdit,
-                Text::new("LevelEditor"),
-                BorderColor(Color::BLACK),
-                BorderRadius::MAX,
-                BackgroundColor(NORMAL_BUTTON),
-                MenuUI,
-            ));
-            // Spawn Settings Button
-            parent.spawn((
-                Button,
-                ButtonType::Settings,
-                Text::new("Settings"),
-                BorderColor(Color::BLACK),
-                BorderRadius::MAX,
-                BackgroundColor(NORMAL_BUTTON),
-                MenuUI,
-            ));
-            // Spawn Exit Button
-            parent.spawn((
-                Button,
-                ButtonType::Exit,
-                Text::new("Exit"),
-                BorderColor(Color::BLACK),
-                BorderRadius::MAX,
-                BackgroundColor(NORMAL_BUTTON),
-                MenuUI,
-            ));
-        });
+            children![
+                (
+                    Button,
+                    ButtonType::StartGame,
+                    Text::new("Start Game"),
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
+                    MenuUI,
+                ),
+                (
+                    Button,
+                    ButtonType::LevelEdit,
+                    Text::new("LevelEditor"),
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
+                    MenuUI,
+                ),
+                (
+                    Button,
+                    ButtonType::Settings,
+                    Text::new("Settings"),
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
+                    MenuUI,
+                ),
+                (
+                    Button,
+                    ButtonType::Exit,
+                    Text::new("Exit"),
+                    BorderColor(Color::BLACK),
+                    BorderRadius::MAX,
+                    BackgroundColor(NORMAL_BUTTON),
+                    MenuUI,
+                )
+            ],
+        ));
 }
 
 #[derive(Debug, Component, Clone)]

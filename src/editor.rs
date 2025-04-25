@@ -53,7 +53,7 @@ fn setup(
         // TODO create nodes that put 2 buttons in a row aligned to the bottom left
         commands.spawn((
             Node {
-                width: Val::Percent(15.0),
+                width: Val::Percent(20.0),
                 height: Val::Percent(100.0),
                 align_items: AlignItems::End,
                 align_content: AlignContent::End,
@@ -62,79 +62,85 @@ fn setup(
                 column_gap: Val::Px(10.0),
                 ..default()
             },
-        )).with_children(|parent| {
-            // Row 1
-            parent.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                ..default()
-            }).with_children(|parent| {
-                parent.spawn((
-                    Button,
-                    TilePath::Vertical,
-                    Text::new("Vertical"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
+            children![
+                // first Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        (
+                            Button,
+                            TilePath::Vertical,
+                            Text::new("Vertical"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                        (
+                            Button,
+                            TilePath::Horizontal,
+                            Text::new("Horizontal"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                    ]
+                ),
+                // second Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        (
+                            Button,
+                            TilePath::TopLeft,
+                            Text::new("Top Left"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                        (
+                            Button,
+                            TilePath::TopRight,
+                            Text::new("Top Right"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                    ]
+                ),
+                // third Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        (
+                            Button,
+                            TilePath::BottomLeft,
+                            Text::new("Bottom Left"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                        (
+                            Button,
+                            TilePath::BottomRight,
+                            Text::new("Bottom Right"),
+                            BorderColor(Color::BLACK),
+                            BorderRadius::MAX,
+                            BackgroundColor(NORMAL_BUTTON),
+                        ),
+                    ]
+                ),
 
-                parent.spawn((
-                    Button,
-                    TilePath::Horizontal,
-                    Text::new("Horizontal"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
-            });
-
-            // Row 2
-            parent.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                ..default()
-            }).with_children(|parent| {
-                parent.spawn((
-                    Button,
-                    TilePath::TopLeft,
-                    Text::new("Top Left"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
-
-                parent.spawn((
-                    Button,
-                    TilePath::TopRight,
-                    Text::new("Top Right"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
-            });
-
-            // Row 3
-            parent.spawn(Node {
-                flex_direction: FlexDirection::Row,
-                ..default()
-            }).with_children(|parent| {
-                parent.spawn((
-                    Button,
-                    TilePath::BottomLeft,
-                    Text::new("Bottom Left"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
-
-                parent.spawn((
-                    Button,
-                    TilePath::BottomRight,
-                    Text::new("Bottom Right"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                ));
-            });
-        }); 
+            ],
+        ));
         
         // Reset Map and Redraw it
         gtm.reset_map();

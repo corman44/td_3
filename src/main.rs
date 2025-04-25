@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use td_3::{cam_ctrl::CamCtrl, editor::Editor, game_debug::GameDebug, tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs

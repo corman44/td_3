@@ -137,7 +137,7 @@ fn menu_button_system(
                     ButtonType::StartGame => {
                         // info!("Starting Game!");
                         app_state.set(AppState::ToGame);
-                        ev_desp_menu.send(StartGameEvent);
+                        ev_desp_menu.write(StartGameEvent);
                         despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Settings => {
@@ -153,7 +153,7 @@ fn menu_button_system(
                     ButtonType::Exit => {
                         info!("Goodbye!");
                         app_state.set(AppState::Exit);
-                        exit.send(AppExit::Success);
+                        exit.write(AppExit::Success);
                     }
                 }
             }

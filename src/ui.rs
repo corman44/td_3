@@ -53,7 +53,6 @@ fn pause_menu(
 fn display_menu(
     mut commands: Commands,
 ) {
-    info!("Displayng Menu");
     // Spawn Game Button
     commands
         .spawn((
@@ -71,42 +70,10 @@ fn display_menu(
             },
             MenuUI,
             children![
-                (
-                    Button,
-                    ButtonType::StartGame,
-                    Text::new("Start Game"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                    MenuUI,
-                ),
-                (
-                    Button,
-                    ButtonType::LevelEdit,
-                    Text::new("LevelEditor"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                    MenuUI,
-                ),
-                (
-                    Button,
-                    ButtonType::Settings,
-                    Text::new("Settings"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                    MenuUI,
-                ),
-                (
-                    Button,
-                    ButtonType::Exit,
-                    Text::new("Exit"),
-                    BorderColor(Color::BLACK),
-                    BorderRadius::MAX,
-                    BackgroundColor(NORMAL_BUTTON),
-                    MenuUI,
-                )
+                button("Start Game", ButtonType::StartGame),
+                button("Level Editor", ButtonType::LevelEdit),
+                button("Settings", ButtonType::Settings),
+                button("Exit", ButtonType::Exit),
             ],
         ));
 }
@@ -135,18 +102,15 @@ fn menu_button_system(
                 *color = PRESSED_BUTTON.into();
                 match button_type {
                     ButtonType::StartGame => {
-                        // info!("Starting Game!");
                         app_state.set(AppState::ToGame);
                         ev_desp_menu.write(StartGameEvent);
                         despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::Settings => {
-                        // info!("Settings");
                         app_state.set(AppState::Settings);
                         despawn_menu(&mut nodes, &mut vis);
                     }
                     ButtonType::LevelEdit => {
-                        // info!("Level Editting");
                         app_state.set(AppState::ToEditor); 
                         despawn_menu(&mut nodes, &mut vis);
                     }
@@ -169,7 +133,6 @@ fn menu_button_system(
 
 /// Hide buttons and UI Nodes
 fn despawn_menu(
-    // mut buttons: &mut Query<&mut Visibility, With<Button>>,
     nodes: &mut Query<&mut Node, With<MenuUI>>,
     vis: &mut Mut< '_, Visibility>,
 ) {
@@ -178,4 +141,17 @@ fn despawn_menu(
         each.display = Display::None;
 
     }
+}
+
+/// Button creation function for cleaner UI Code
+fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
+    (
+        Button,
+        typ,
+        Text::new(text.into()),
+        BorderColor(Color::BLACK),
+        BorderRadius::MAX,
+        BackgroundColor(NORMAL_BUTTON),
+        MenuUI,
+    )
 }

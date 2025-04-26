@@ -50,7 +50,6 @@ fn setup(
     if app_state.is_changed() && &AppState::InEditor == app_state.get() {
         // transition to InEditor detected, launch editor
 
-        // TODO create nodes that put 2 buttons in a row aligned to the bottom left
         commands.spawn((
             Node {
                 width: Val::Percent(20.0),

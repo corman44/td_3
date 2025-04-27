@@ -1,6 +1,6 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 
-use crate::{AppState, StartGameEvent};
+use crate::{editor::TilePath, AppState, StartGameEvent};
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -18,7 +18,9 @@ impl Plugin for Ui {
             .add_systems(
                 Update,
                 (menu_button_system)
-                    .run_if(in_state(AppState::StartMenu).or(in_state(AppState::PauseMenu))),
+                    .run_if(in_state(AppState::StartMenu)
+                    .or(in_state(AppState::PauseMenu))
+                    .or(in_state(AppState::InEditor))),
             )
             .add_systems(
                 Update,
@@ -50,36 +52,39 @@ fn pause_menu(
 
 /// starting menu displayed when launching game
 /// Screen Flow: ..booting -> StartingMenu -> Game / Level Editor -> Pause -> Settings / Starting / Exit
-fn display_menu(
-    mut commands: Commands,
-) {
+fn display_menu(mut commands: Commands) {
     // Spawn Game Button
-    commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                column_gap: Val::Px(10.0),
-                ..default()
-            },
-            Pickable {
-                should_block_lower: true,
-                ..default()
-            },
-            MenuUI,
-            children![
-                button("Start Game", ButtonType::StartGame),
-                button("Level Editor", ButtonType::LevelEdit),
-                button("Settings", ButtonType::Settings),
-                button("Exit", ButtonType::Exit),
-            ],
-        ));
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            column_gap: Val::Px(10.0),
+            ..default()
+        },
+        Pickable {
+            should_block_lower: true,
+            ..default()
+        },
+        MenuUI,
+        children![
+            button("Start Game", ButtonType::Menu(MenuType::StartGame)),
+            button("Level Editor", ButtonType::Menu(MenuType::LevelEdit)),
+            button("Settings", ButtonType::Menu(MenuType::Settings)),
+            button("Exit", ButtonType::Menu(MenuType::Exit)),
+        ],
+    ));
 }
 
 #[derive(Debug, Component, Clone)]
 pub enum ButtonType {
+    Menu(MenuType),
+    Editor(TilePath),
+}
+
+#[derive(Debug, Component, Clone)]
+pub enum MenuType {
     StartGame,
     Settings,
     LevelEdit,
@@ -89,8 +94,13 @@ pub enum ButtonType {
 fn menu_button_system(
     mut app_state: ResMut<NextState<AppState>>,
     mut buttons: Query<
-        (&Interaction, &mut BackgroundColor, &ButtonType, &mut Visibility),
-        (Changed<Interaction>, With<Button>, With<MenuUI>),
+        (
+            &Interaction,
+            &mut BackgroundColor,
+            &ButtonType,
+            &mut Visibility,
+        ),
+        (Changed<Interaction>, With<Button>),
     >,
     mut ev_desp_menu: EventWriter<StartGameEvent>,
     mut exit: EventWriter<AppExit>,
@@ -101,24 +111,27 @@ fn menu_button_system(
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
                 match button_type {
-                    ButtonType::StartGame => {
-                        app_state.set(AppState::ToGame);
-                        ev_desp_menu.write(StartGameEvent);
-                        despawn_menu(&mut nodes, &mut vis);
-                    }
-                    ButtonType::Settings => {
-                        app_state.set(AppState::Settings);
-                        despawn_menu(&mut nodes, &mut vis);
-                    }
-                    ButtonType::LevelEdit => {
-                        app_state.set(AppState::ToEditor); 
-                        despawn_menu(&mut nodes, &mut vis);
-                    }
-                    ButtonType::Exit => {
-                        info!("Goodbye!");
-                        app_state.set(AppState::Exit);
-                        exit.write(AppExit::Success);
-                    }
+                    ButtonType::Menu(menu) => match menu {
+                        MenuType::StartGame => {
+                            app_state.set(AppState::ToGame);
+                            ev_desp_menu.write(StartGameEvent);
+                            despawn_menu(&mut nodes, &mut vis);
+                        }
+                        MenuType::Settings => {
+                            app_state.set(AppState::Settings);
+                            despawn_menu(&mut nodes, &mut vis);
+                        }
+                        MenuType::LevelEdit => {
+                            app_state.set(AppState::ToEditor);
+                            despawn_menu(&mut nodes, &mut vis);
+                        }
+                        MenuType::Exit => {
+                            info!("Goodbye!");
+                            app_state.set(AppState::Exit);
+                            exit.write(AppExit::Success);
+                        }
+                    },
+                    _ => (),
                 }
             }
             Interaction::Hovered => {
@@ -132,19 +145,15 @@ fn menu_button_system(
 }
 
 /// Hide buttons and UI Nodes
-fn despawn_menu(
-    nodes: &mut Query<&mut Node, With<MenuUI>>,
-    vis: &mut Mut< '_, Visibility>,
-) {
+fn despawn_menu(nodes: &mut Query<&mut Node, With<MenuUI>>, vis: &mut Mut<'_, Visibility>) {
     vis.toggle_visible_hidden();
     for mut each in nodes.iter_mut() {
         each.display = Display::None;
-
     }
 }
 
 /// Button creation function for cleaner UI Code
-fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
+pub fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
     (
         Button,
         typ,
@@ -152,6 +161,5 @@ fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
         BorderColor(Color::BLACK),
         BorderRadius::MAX,
         BackgroundColor(NORMAL_BUTTON),
-        MenuUI,
     )
 }

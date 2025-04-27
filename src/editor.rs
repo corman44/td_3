@@ -1,6 +1,4 @@
-use bevy::{input::mouse::MouseMotion, prelude::*};
-
-use crate::{tilemap::GameTilemap, AppState};
+use bevy::{prelude::*, window::PrimaryWindow}; use crate::{tilemap::GameTilemap, ui::{button, ButtonType}, AppState};
 
 // TODO add functionality to place the paths on existing
 // TODO add save functionality (and define format)
@@ -17,9 +15,9 @@ pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 struct EditorUI;
 
 #[derive(Debug, Component)]
-struct MiniTile;
+pub struct MiniTile;
 
-#[derive(Debug, Component)]
+#[derive(Clone, Debug, Component, PartialEq, Eq)]
 pub enum TilePath {
     Vertical,
     Horizontal,
@@ -27,6 +25,8 @@ pub enum TilePath {
     TopRight,
     BottomLeft,
     BottomRight,
+    Blocked,
+    Ground,
 }
 
 /// Usage
@@ -36,9 +36,22 @@ pub struct Editor;
 
 impl Plugin for Editor {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, setup)
-            .add_systems(Update, editor_buttons.run_if(in_state(AppState::InEditor)));
+        app
+            .init_state::<MiniTileState>()
+            .add_systems(Update, setup)
+            .add_systems(Update, editor_buttons.run_if(in_state(AppState::InEditor)))
+            .add_systems(Update, minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)))
+            .add_systems(Update, despawn_minitile.run_if(in_state(MiniTileState::Despawn)));
+
     }
+}
+
+#[derive(States, Debug, Clone, Hash, PartialEq, Eq, Default)]
+pub enum MiniTileState {
+    Spawned,
+    #[default]
+    NotSpawned,
+    Despawn,
 }
 
 /// Setup Map Editor
@@ -61,6 +74,7 @@ fn setup(
                 column_gap: Val::Px(10.0),
                 ..default()
             },
+            EditorUI,
             children![
                 // first Row
                 (
@@ -69,22 +83,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        (
-                            Button,
-                            TilePath::Vertical,
-                            Text::new("Vertical"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
-                        (
-                            Button,
-                            TilePath::Horizontal,
-                            Text::new("Horizontal"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
+                        button("Vertical", ButtonType::Editor(TilePath::Vertical)),
+                        button("Hotizontal", ButtonType::Editor(TilePath::Horizontal)),
                     ]
                 ),
                 // second Row
@@ -94,22 +94,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        (
-                            Button,
-                            TilePath::TopLeft,
-                            Text::new("Top Left"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
-                        (
-                            Button,
-                            TilePath::TopRight,
-                            Text::new("Top Right"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
+                        button("Top Left", ButtonType::Editor(TilePath::TopLeft)),
+                        button("Top Right", ButtonType::Editor(TilePath::TopRight)),
                     ]
                 ),
                 // third Row
@@ -119,25 +105,21 @@ fn setup(
                         ..default()
                     },
                     children![
-                        (
-                            Button,
-                            TilePath::BottomLeft,
-                            Text::new("Bottom Left"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
-                        (
-                            Button,
-                            TilePath::BottomRight,
-                            Text::new("Bottom Right"),
-                            BorderColor(Color::BLACK),
-                            BorderRadius::MAX,
-                            BackgroundColor(NORMAL_BUTTON),
-                        ),
+                        button("Bottom Left", ButtonType::Editor(TilePath::BottomLeft)),
+                        button("Bottom Right", ButtonType::Editor(TilePath::BottomRight)),
                     ]
                 ),
-
+                // Fourth Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        button("Blocked", ButtonType::Editor(TilePath::Blocked)),
+                        button("Ground", ButtonType::Editor(TilePath::Ground)),
+                    ]
+                ),
             ],
         ));
         
@@ -148,47 +130,66 @@ fn setup(
 
 fn editor_buttons(
     mut commands: Commands,
-    mut buttons: Query<(&TilePath, &mut BackgroundColor, &Interaction), (Changed<Interaction>, With<EditorUI>, With<Button>)>,
+    mut buttons: Query<(&ButtonType, &mut BackgroundColor, &Interaction), (Changed<Interaction>, With<Button>)>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut minitile_state: ResMut<NextState<MiniTileState>>
 ) {
-    for (tile_path, mut color, interaction) in buttons.iter_mut() {
+    for (button_type, mut _color, interaction) in buttons.iter_mut() {
+        let mut tile_type = &TilePath::TopLeft;
+        match button_type {
+            ButtonType::Editor(tile_path) => tile_type = tile_path,
+            _ => (),
+        }
         match interaction {
             Interaction::Pressed => {
-                // TODO create 'mini' tile that follows the cursor
-                spawn_minitile(&mut commands, &mut meshes, tile_path);
+                spawn_minitile(&mut commands, &mut meshes, &mut materials, &tile_type , &mut minitile_state);
             }
-            Interaction::Hovered => {
-                *color = BackgroundColor(HOVERED_BUTTON);
-            }
-            Interaction::None => {
-                commands.insert_resource(ClearColor(NORMAL_BUTTON));
-            }
+            _ => (),
         }
     }
 }
 
 fn spawn_minitile(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
     tile_path: &TilePath,
+    minitile_state: &mut ResMut<NextState<MiniTileState>>,
 ) {
+    info!("Spawning MiniTile");
     commands.spawn((
-        Mesh2d::from(meshes.add(Rectangle::new(2., 2.))),
-        Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-        // MiniTile,
-        // tile_path.clone(),
+        Mesh3d::from(meshes.add(Cuboid::new(2., 1., 2.))),
+        MeshMaterial3d::from(materials.add(Color::BLACK)),
+        Transform::from_translation(Vec3::new(1., 1., 1.)),
+        MiniTile,
+        tile_path.clone(),
     ));
+    minitile_state.set(MiniTileState::Spawned);
+}
+
+/// Using State Change to Despawn the MiniTile that follows the cursor
+fn despawn_minitile(
+    mut commands: Commands,
+    minitile_query: Query<Entity, With<MiniTile>>,
+) {
+    for e in &minitile_query {
+        commands.entity(e).despawn();
+    }
 }
 
 fn minitile_cursor_follow(
-    mut cursor_mover: Query<&mut Transform, With<MiniTile>>,
-    mut cursor_pos: EventReader<MouseMotion>,
+    mut minitile: Query<&mut Transform, With<MiniTile>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    time: Res<Time>,
 ) {
-    for ev in cursor_pos.read() {
-        
-    }
-    for mut transform in cursor_mover.iter_mut() {
-        transform.translation.x += cursor_pos.read().next().unwrap().delta.x;
-        transform.translation.z += cursor_pos.read().next().unwrap().delta.y;
-    }
+    let mut transform = minitile.single_mut().expect("No minitile found..");
+    // FIXME Handle if cursor goes off screen (don't panic.)
+    let cursor_pos = window_query.single().expect("No window found").cursor_position().expect("No Cursor Pos..");
+    // FIXME how to properly scale where the cursor is compared to the world
+    // x: 31 -> 115, cursor: 0 -> 153 
+    // y: 0 -> 84 , cursor: 0 -> 84
+    // map dimensions is 0 -> 120 in both dirs
+    transform.translation.x = (cursor_pos.x / 10. - 34.) * 160./115. ;
+    transform.translation.z = (cursor_pos.y / 10. - 3.) * 120./84.;
 }

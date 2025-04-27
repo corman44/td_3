@@ -1,4 +1,4 @@
-use crate::StartGameEvent;
+use crate::{editor::{MiniTile, MiniTileState, TilePath}, StartGameEvent};
 use bevy::prelude::*;
 use std::collections::HashMap;
 
@@ -115,7 +115,7 @@ fn spawn_map(
                         TileLocation(IVec2::new(v.x, v.y)),
                         tile.clone(),
                     ))
-                    // .observe(|trigger: Trigger<Pointer<Click>>| { info!("{:?} was clicked!", trigger.target)})
+                    .observe(alter_tile::<Pointer<Pressed>>())
                     .observe(recolor::<Pointer<Over>>(0.15))
                     .observe(recolor::<Pointer<Out>>(0.0));
 
@@ -154,8 +154,37 @@ fn recolor<E>(
             TileType::EnemyMap(_enemy_tile) => {
                 mat.0 = materials.add(ENEMY_TILE_COLOR.darker(scale));
             }
+            TileType::Blocked => {
+                mat.0 = materials.add(Color::BLACK);
+            }
             _ => {
                 mat.0 = materials.add(GROUND_TILE_COLOR.darker(scale));
+            }
+        }
+    }
+}
+
+fn alter_tile<E>() -> impl Fn(
+    Trigger<E>,
+    Query<&mut MeshMaterial3d<StandardMaterial>>,
+    ResMut<Assets<StandardMaterial>>,
+    Query<&TilePath, With<MiniTile>>,
+    Res<State<MiniTileState>>,
+    ResMut<NextState<MiniTileState>>,
+    Query<&mut TileType>,
+) {
+    move |trigger, mut query, mut materials, tile_path, minitile_state, mut minitile_nextstate, mut tt | {
+        if minitile_state.get() == &MiniTileState::Spawned {
+            let tp = tile_path.single().expect("No TP Found..");
+            if tp == &TilePath::Blocked || tp == &TilePath::Ground {
+                let ent = trigger.target();
+                let mut mat = query.get_mut(ent).expect("No Mat found for ent");
+                mat.0 = materials.add(Color::BLACK);
+
+                let mut tiletype = tt.get_mut(ent).expect("No TileType found..");
+                *tiletype = TileType::Blocked;
+
+                minitile_nextstate.set(MiniTileState::Despawn);
             }
         }
     }
@@ -197,12 +226,4 @@ fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Path));
         }
     }
-
-    // info!(
-    // "Enemy Path len: {}",
-    // gtm.0
-    // .iter()
-    // .filter(|(_, x)| matches!(x, TileType::EnemyMap(_)))
-    // .count()
-    // );
 }

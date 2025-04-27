@@ -47,8 +47,6 @@ struct Animations {
     _graph: Handle<AnimationGraph>,
 }
 
-
-
 pub struct CamCtrl;
 
 impl Plugin for CamCtrl {
@@ -72,7 +70,7 @@ fn setup(
     // Setup Camera Curve Transition Animations
     let mut animation_clip_editor = AnimationClip::default();
     let mut animation_clip_game = AnimationClip::default();
-    let animation_domain = interval(0.75, 5.5).unwrap();
+    let animation_domain = interval(0.25, 1.0).unwrap();
     let animation_target_name1 = Name::new("CameraPan");
     let animation_target_id1 = AnimationTargetId::from_name(&animation_target_name1);
     let easing = EaseFunction::QuadraticInOut;

@@ -88,6 +88,8 @@ pub enum MenuType {
     StartGame,
     Settings,
     LevelEdit,
+    Save,
+    Load,
     Exit,
 }
 
@@ -130,6 +132,7 @@ fn menu_button_system(
                             app_state.set(AppState::Exit);
                             exit.write(AppExit::Success);
                         }
+                        _ => ()
                     },
                     _ => (),
                 }

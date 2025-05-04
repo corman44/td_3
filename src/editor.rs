@@ -1,12 +1,9 @@
 use std::{fs::File, io::Write};
 
 use crate::{
-    AppState,
     tilemap::{
-        BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, EnemyTile, GROUND_TILE_COLOR, GameTilemap,
-        TileLocation, TileType,
-    },
-    ui::{ButtonType, button},
+        EnemyTile, GameTilemap, TileLocation, TileType, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR
+    }, ui::{button, ButtonType, MenuType}, AppState
 };
 use bevy::{prelude::*, window::PrimaryWindow};
 
@@ -19,6 +16,9 @@ use bevy::{prelude::*, window::PrimaryWindow};
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
+#[derive(Debug, Component, Event)]
+struct SaveMapEvent;
 
 #[derive(Debug, Component)]
 struct EditorUI;
@@ -33,14 +33,17 @@ pub struct Editor;
 
 impl Plugin for Editor {
     fn build(&self, app: &mut App) {
-        app.init_state::<MiniTileState>()
+        app
+            .init_state::<MiniTileState>()
+            .add_event::<SaveMapEvent>()
             .add_systems(Update, setup)
-            .add_systems(Update, editor_buttons.run_if(in_state(AppState::InEditor)))
+            .add_systems(Update, (editor_buttons, save_map).run_if(in_state(AppState::InEditor)))
             .add_systems(
                 Update,
                 minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)),
             )
             .add_systems(
+                // TODO alter despawn to utilize an event system instead of a state system
                 Update,
                 despawn_minitile.run_if(in_state(MiniTileState::Despawn)),
             );
@@ -135,6 +138,17 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         button("Ground", ButtonType::Editor(TileType::Free)),
                     ]
                 ),
+                // Fifth Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        button("Save", ButtonType::Menu(MenuType::Save)),
+                        button("Load", ButtonType::Menu(MenuType::Load)),
+                    ]
+                ),
             ],
         ));
 
@@ -153,11 +167,22 @@ fn editor_buttons(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut minitile_state: ResMut<NextState<MiniTileState>>,
     minitile: Query<Entity, With<MiniTile>>,
+    mut ev_save_map: EventWriter<SaveMapEvent>,
 ) {
     for (button_type, mut _color, interaction) in buttons.iter_mut() {
         let mut tile_type = &TileType::Free;
         match button_type {
             ButtonType::Editor(tt) => tile_type = tt,
+            ButtonType::Menu(menu) => match menu {
+                MenuType::Save => {
+                    // TODO trigger save map event
+                }
+                MenuType::Load => {
+                    // TODO implement load map functionality
+                    ev_save_map.write(SaveMapEvent);
+                }
+                _ => (),
+            },
             _ => (),
         }
         match interaction {
@@ -238,7 +263,14 @@ fn minitile_cursor_follow(
     }
 }
 
-fn save_map(tile_query: Query<(&TileType, &TileLocation)>) {
+fn save_map(
+    tile_query: Query<(&TileType, &TileLocation)>,
+    ev_save_map: EventReader<SaveMapEvent>,
+) {
+    if ev_save_map.is_empty() {
+        return;
+    }
+
     let mut file = File::create("map_save.txt").expect("unable to create file.. ");
     for (tt, t_loc) in tile_query.iter() {
         match tt {

@@ -1,6 +1,6 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 
-use crate::{editor::TilePath, AppState, StartGameEvent};
+use crate::{tilemap::TileType, AppState, StartGameEvent};
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -80,7 +80,7 @@ fn display_menu(mut commands: Commands) {
 #[derive(Debug, Component, Clone)]
 pub enum ButtonType {
     Menu(MenuType),
-    Editor(TilePath),
+    Editor(TileType),
 }
 
 #[derive(Debug, Component, Clone)]

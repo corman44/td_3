@@ -1,6 +1,5 @@
-use bevy::{prelude::*, window::PrimaryWindow}; use crate::{tilemap::GameTilemap, ui::{button, ButtonType}, AppState};
+use bevy::{prelude::*, window::PrimaryWindow}; use crate::{tilemap::{EnemyTile, GameTilemap, TileType, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR}, ui::{button, ButtonType}, AppState};
 
-// TODO add functionality to place the paths on existing
 // TODO add save functionality (and define format)
 // TODO don't allow saving unless a path is defined
     // TODO determine if Enemy Path is valid
@@ -17,17 +16,17 @@ struct EditorUI;
 #[derive(Debug, Component)]
 pub struct MiniTile;
 
-#[derive(Clone, Debug, Component, PartialEq, Eq)]
-pub enum TilePath {
-    Vertical,
-    Horizontal,
-    TopLeft,
-    TopRight,
-    BottomLeft,
-    BottomRight,
-    Blocked,
-    Ground,
-}
+// #[derive(Clone, Debug, Component, PartialEq, Eq)]
+// pub enum TilePath {
+    // Vertical,
+    // Horizontal,
+    // TopLeft,
+    // TopRight,
+    // BottomLeft,
+    // BottomRight,
+    // Blocked,
+    // Ground,
+// }
 
 /// Usage
 /// Click a Tile Type (Enemy Path, Free, Rock, Water, etc.) then a small version of that tile follows the cursor while selected
@@ -83,8 +82,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Vertical", ButtonType::Editor(TilePath::Vertical)),
-                        button("Hotizontal", ButtonType::Editor(TilePath::Horizontal)),
+                        button("Vertical", ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))),
+                        button("Hotizontal", ButtonType::Editor(TileType::EnemyMap(EnemyTile::Horizontal))),
                     ]
                 ),
                 // second Row
@@ -94,8 +93,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Top Left", ButtonType::Editor(TilePath::TopLeft)),
-                        button("Top Right", ButtonType::Editor(TilePath::TopRight)),
+                        button("Top Left", ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopLeft))),
+                        button("Top Right", ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopRight))),
                     ]
                 ),
                 // third Row
@@ -105,8 +104,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Bottom Left", ButtonType::Editor(TilePath::BottomLeft)),
-                        button("Bottom Right", ButtonType::Editor(TilePath::BottomRight)),
+                        button("Bottom Left", ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomLeft))),
+                        button("Bottom Right", ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomRight))),
                     ]
                 ),
                 // Fourth Row
@@ -116,8 +115,8 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Blocked", ButtonType::Editor(TilePath::Blocked)),
-                        button("Ground", ButtonType::Editor(TilePath::Ground)),
+                        button("Blocked", ButtonType::Editor(TileType::Blocked)),
+                        button("Ground", ButtonType::Editor(TileType::Free)),
                     ]
                 ),
             ],
@@ -133,16 +132,23 @@ fn editor_buttons(
     mut buttons: Query<(&ButtonType, &mut BackgroundColor, &Interaction), (Changed<Interaction>, With<Button>)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut minitile_state: ResMut<NextState<MiniTileState>>
+    mut minitile_state: ResMut<NextState<MiniTileState>>,
+    minitile: Query<Entity, With<MiniTile>>,
 ) {
     for (button_type, mut _color, interaction) in buttons.iter_mut() {
-        let mut tile_type = &TilePath::TopLeft;
+        let mut tile_type = &TileType::Free;
         match button_type {
-            ButtonType::Editor(tile_path) => tile_type = tile_path,
+            ButtonType::Editor(tt) => tile_type = tt,
             _ => (),
         }
         match interaction {
             Interaction::Pressed => {
+                // first need to despawn the existing mt
+                for mt in minitile {
+                    commands.entity(mt).despawn();
+                }
+
+                // then spawn a new one
                 spawn_minitile(&mut commands, &mut meshes, &mut materials, &tile_type , &mut minitile_state);
             }
             _ => (),
@@ -154,18 +160,31 @@ fn spawn_minitile(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-    tile_path: &TilePath,
+    tile_type: &TileType,
     minitile_state: &mut ResMut<NextState<MiniTileState>>,
 ) {
+    let material = tiletype_to_mesh3d(tile_type, materials);
     info!("Spawning MiniTile");
     commands.spawn((
         Mesh3d::from(meshes.add(Cuboid::new(2., 1., 2.))),
-        MeshMaterial3d::from(materials.add(Color::BLACK)),
+        material,
         Transform::from_translation(Vec3::new(1., 1., 1.)),
         MiniTile,
-        tile_path.clone(),
+        tile_type.clone(),
     ));
     minitile_state.set(MiniTileState::Spawned);
+}
+
+fn tiletype_to_mesh3d(
+    tiletype: &TileType,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> MeshMaterial3d<StandardMaterial> {
+    match tiletype {
+        TileType::EnemyMap(_enemy_tile) => MeshMaterial3d::from(materials.add(ENEMY_TILE_COLOR)),
+        TileType::Blocked => MeshMaterial3d::from(materials.add(BLOCKED_TILE_COLOR)),
+        TileType::Free => MeshMaterial3d::from(materials.add(GROUND_TILE_COLOR)),
+        TileType::Tower(_tower_type) => MeshMaterial3d::from(materials.add(GROUND_TILE_COLOR)),
+    }
 }
 
 /// Using State Change to Despawn the MiniTile that follows the cursor

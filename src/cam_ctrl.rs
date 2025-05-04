@@ -180,6 +180,7 @@ fn cam_move_edit(
     mut cam_query: Query<&mut AnimationPlayer, With<Camera>>,
     mut cam_nextstate: ResMut<NextState<CamState>>,
     cam_state: Res<State<CamState>>,
+    mut app_nextstate: ResMut<NextState<AppState>>,
 ) {
     if cam_state.get() != &CamState::EditorView
     && cam_state.get() != &CamState::Moving(CamMoveDir::MoveToEditor)
@@ -188,6 +189,8 @@ fn cam_move_edit(
         let mut player = cam_query.single_mut().expect("Camera not found.. ");
         player.stop_all();
         player.play(*animations.animations.get(1).expect("Animations not initatialized properly.. "));
+    } else if cam_state.get() == &CamState::EditorView {
+        app_nextstate.set(AppState::InEditor);
     }
 }
 

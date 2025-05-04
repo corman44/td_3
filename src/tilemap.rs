@@ -1,7 +1,8 @@
-use crate::{editor::{MiniTile, MiniTileState, TilePath}, StartGameEvent};
+use crate::{editor::{MiniTile, MiniTileState}, StartGameEvent};
 use bevy::prelude::*;
 use std::collections::HashMap;
 
+pub const BLOCKED_TILE_COLOR: Color = Color::srgb(0.88, 0.88, 0.88);
 pub const GROUND_TILE_COLOR: Color = Color::srgb(0.15, 0.75, 0.25);
 pub const ENEMY_TILE_COLOR: Color = Color::srgb(0.75, 0.35, 0.25);
 pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
@@ -31,8 +32,13 @@ pub enum MapState {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Copy)]
 pub enum EnemyTile {
     Start,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Horizontal,
     #[default]
-    Path,
+    Vertical,
     Finish,
 }
 
@@ -155,7 +161,7 @@ fn recolor<E>(
                 mat.0 = materials.add(ENEMY_TILE_COLOR.darker(scale));
             }
             TileType::Blocked => {
-                mat.0 = materials.add(Color::BLACK);
+                mat.0 = materials.add(BLOCKED_TILE_COLOR);
             }
             _ => {
                 mat.0 = materials.add(GROUND_TILE_COLOR.darker(scale));
@@ -168,24 +174,27 @@ fn alter_tile<E>() -> impl Fn(
     Trigger<E>,
     Query<&mut MeshMaterial3d<StandardMaterial>>,
     ResMut<Assets<StandardMaterial>>,
-    Query<&TilePath, With<MiniTile>>,
+    Query<&TileType, With<MiniTile>>,
     Res<State<MiniTileState>>,
-    ResMut<NextState<MiniTileState>>,
-    Query<&mut TileType>,
+    Query<&mut TileType, Without<MiniTile>>,
 ) {
-    move |trigger, mut query, mut materials, tile_path, minitile_state, mut minitile_nextstate, mut tt | {
+    move |trigger, mut query, mut materials, tile_type, minitile_state, mut tt_query | {
         if minitile_state.get() == &MiniTileState::Spawned {
-            let tp = tile_path.single().expect("No TP Found..");
-            if tp == &TilePath::Blocked || tp == &TilePath::Ground {
-                let ent = trigger.target();
-                let mut mat = query.get_mut(ent).expect("No Mat found for ent");
-                mat.0 = materials.add(Color::BLACK);
+            let selected_tt = tile_type.single().expect("no TileType found..");
+            let ent = trigger.target();
+            let mut mat = query.get_mut(ent).expect("No Mat found for ent");
 
-                let mut tiletype = tt.get_mut(ent).expect("No TileType found..");
-                *tiletype = TileType::Blocked;
+            let mut tiletype = tt_query.get_mut(ent).expect("No TileType Found for ent.. ");
+            *tiletype = selected_tt.clone();
 
-                minitile_nextstate.set(MiniTileState::Despawn);
+            match selected_tt {
+                TileType::EnemyMap(_enemy_tile) => mat.0 = materials.add(ENEMY_TILE_COLOR),
+                TileType::Blocked => mat.0 = materials.add(BLOCKED_TILE_COLOR),
+                TileType::Free => mat.0 = materials.add(GROUND_TILE_COLOR),
+                TileType::Tower(_tower_type) => mat.0 = materials.add(GROUND_TILE_COLOR),
             }
+            
+            // TODO need GTM update in order to retain the tile_type after mouse leaves hover 
         }
     }
 }
@@ -223,7 +232,7 @@ fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>
         } else if idx == enemy_path.0.clone().unwrap().len() - 1 {
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Finish));
         } else {
-            gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Path));
+            gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Vertical));
         }
     }
 }

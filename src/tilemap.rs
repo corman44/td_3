@@ -11,6 +11,7 @@ pub const MAP_SIZE: i32 = 12;
 
 /// enum for tile types
 #[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy)]
+#[repr(u8)]
 pub enum TileType {
     EnemyMap(EnemyTile),
     Blocked,
@@ -20,7 +21,7 @@ pub enum TileType {
 }
 
 #[derive(Debug, Component, Clone, PartialEq, Eq)]
-pub struct TileLocation(IVec2);
+pub struct TileLocation(pub IVec2);
 
 #[derive(Debug, Clone, States, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MapState {

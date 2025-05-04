@@ -1,10 +1,20 @@
-use bevy::{prelude::*, window::PrimaryWindow}; use crate::{tilemap::{EnemyTile, GameTilemap, TileType, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR}, ui::{button, ButtonType}, AppState};
+use std::{fs::File, io::Write};
+
+use crate::{
+    AppState,
+    tilemap::{
+        BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, EnemyTile, GROUND_TILE_COLOR, GameTilemap,
+        TileLocation, TileType,
+    },
+    ui::{ButtonType, button},
+};
+use bevy::{prelude::*, window::PrimaryWindow};
 
 // TODO add save functionality (and define format)
 // TODO don't allow saving unless a path is defined
-    // TODO determine if Enemy Path is valid
-    // TODO display message of reason for failed save
-// TODO add Load Map functionality 
+// TODO determine if Enemy Path is valid
+// TODO display message of reason for failed save
+// TODO add Load Map functionality
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -16,32 +26,24 @@ struct EditorUI;
 #[derive(Debug, Component)]
 pub struct MiniTile;
 
-// #[derive(Clone, Debug, Component, PartialEq, Eq)]
-// pub enum TilePath {
-    // Vertical,
-    // Horizontal,
-    // TopLeft,
-    // TopRight,
-    // BottomLeft,
-    // BottomRight,
-    // Blocked,
-    // Ground,
-// }
-
-/// Usage
+/// Usage:
 /// Click a Tile Type (Enemy Path, Free, Rock, Water, etc.) then a small version of that tile follows the cursor while selected
-/// when clicking a tile the tile type is applied 
+/// when clicking a tile the tile type is applied
 pub struct Editor;
 
 impl Plugin for Editor {
     fn build(&self, app: &mut App) {
-        app
-            .init_state::<MiniTileState>()
+        app.init_state::<MiniTileState>()
             .add_systems(Update, setup)
             .add_systems(Update, editor_buttons.run_if(in_state(AppState::InEditor)))
-            .add_systems(Update, minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)))
-            .add_systems(Update, despawn_minitile.run_if(in_state(MiniTileState::Despawn)));
-
+            .add_systems(
+                Update,
+                minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)),
+            )
+            .add_systems(
+                Update,
+                despawn_minitile.run_if(in_state(MiniTileState::Despawn)),
+            );
     }
 }
 
@@ -54,11 +56,7 @@ pub enum MiniTileState {
 }
 
 /// Setup Map Editor
-fn setup(
-    app_state: Res<State<AppState>>,
-    mut commands: Commands,
-    mut gtm: ResMut<GameTilemap>,
-) {
+fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMut<GameTilemap>) {
     if app_state.is_changed() && &AppState::InEditor == app_state.get() {
         // transition to InEditor detected, launch editor
 
@@ -82,8 +80,14 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Vertical", ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))),
-                        button("Hotizontal", ButtonType::Editor(TileType::EnemyMap(EnemyTile::Horizontal))),
+                        button(
+                            "Vertical",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))
+                        ),
+                        button(
+                            "Hotizontal",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Horizontal))
+                        ),
                     ]
                 ),
                 // second Row
@@ -93,8 +97,14 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Top Left", ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopLeft))),
-                        button("Top Right", ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopRight))),
+                        button(
+                            "Top Left",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopLeft))
+                        ),
+                        button(
+                            "Top Right",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopRight))
+                        ),
                     ]
                 ),
                 // third Row
@@ -104,8 +114,14 @@ fn setup(
                         ..default()
                     },
                     children![
-                        button("Bottom Left", ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomLeft))),
-                        button("Bottom Right", ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomRight))),
+                        button(
+                            "Bottom Left",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomLeft))
+                        ),
+                        button(
+                            "Bottom Right",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomRight))
+                        ),
                     ]
                 ),
                 // Fourth Row
@@ -121,7 +137,7 @@ fn setup(
                 ),
             ],
         ));
-        
+
         // Reset Map and Redraw it
         gtm.reset_map();
     }
@@ -129,7 +145,10 @@ fn setup(
 
 fn editor_buttons(
     mut commands: Commands,
-    mut buttons: Query<(&ButtonType, &mut BackgroundColor, &Interaction), (Changed<Interaction>, With<Button>)>,
+    mut buttons: Query<
+        (&ButtonType, &mut BackgroundColor, &Interaction),
+        (Changed<Interaction>, With<Button>),
+    >,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut minitile_state: ResMut<NextState<MiniTileState>>,
@@ -149,7 +168,13 @@ fn editor_buttons(
                 }
 
                 // then spawn a new one
-                spawn_minitile(&mut commands, &mut meshes, &mut materials, &tile_type , &mut minitile_state);
+                spawn_minitile(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    &tile_type,
+                    &mut minitile_state,
+                );
             }
             _ => (),
         }
@@ -187,28 +212,70 @@ fn tiletype_to_mesh3d(
     }
 }
 
-/// Using State Change to Despawn the MiniTile that follows the cursor
-fn despawn_minitile(
-    mut commands: Commands,
-    minitile_query: Query<Entity, With<MiniTile>>,
-) {
+/// Despawn the MiniTile that follows the cursor
+fn despawn_minitile(mut commands: Commands, minitile_query: Query<Entity, With<MiniTile>>) {
     for e in &minitile_query {
         commands.entity(e).despawn();
     }
 }
 
+/// MiniTile cursor following after spawned
 fn minitile_cursor_follow(
     mut minitile: Query<&mut Transform, With<MiniTile>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
-    time: Res<Time>,
 ) {
-    let mut transform = minitile.single_mut().expect("No minitile found..");
-    // FIXME Handle if cursor goes off screen (don't panic.)
-    let cursor_pos = window_query.single().expect("No window found").cursor_position().expect("No Cursor Pos..");
     // FIXME how to properly scale where the cursor is compared to the world
-    // x: 31 -> 115, cursor: 0 -> 153 
-    // y: 0 -> 84 , cursor: 0 -> 84
-    // map dimensions is 0 -> 120 in both dirs
-    transform.translation.x = (cursor_pos.x / 10. - 34.) * 160./115. ;
-    transform.translation.z = (cursor_pos.y / 10. - 3.) * 120./84.;
+    let mut transform = minitile.single_mut().expect("No minitile found..");
+    match window_query.single() {
+        Ok(win) => match win.cursor_position() {
+            Some(pos) => {
+                transform.translation.x = (pos.x / 10. - 34.) * 160. / 115.;
+                transform.translation.z = (pos.y / 10. - 3.) * 120. / 84.;
+            }
+            None => info!("Cursor Position not found.. "),
+        },
+        _ => (),
+    }
+}
+
+fn save_map(tile_query: Query<(&TileType, &TileLocation)>) {
+    let mut file = File::create("map_save.txt").expect("unable to create file.. ");
+    for (tt, t_loc) in tile_query.iter() {
+        match tt {
+            TileType::EnemyMap(enemy_tile) => match enemy_tile {
+                EnemyTile::Start => {
+                    let _ =
+                        file.write(&format!("S, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                }
+                EnemyTile::TopLeft => {
+                    let _ = file.write(&format!("TL, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::TopRight => {
+                    let _ = file.write(&format!("TR, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::BottomLeft => {
+                    let _ = file.write(&format!("BL, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::BottomRight => {
+                    let _ = file.write(&format!("BR, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::Horizontal => {
+                    let _ = file.write(&format!("H, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::Vertical => {
+                    let _ = file.write(&format!("V, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+                EnemyTile::Finish => {
+                    let _ = file.write(&format!("F, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+                },
+            },
+            TileType::Blocked => {
+                let _ = file.write(&format!("B, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+            }
+            TileType::Free => {
+                let _ = file.write(&format!("F, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
+            }
+            _ => (),
+        }
+    }
 }

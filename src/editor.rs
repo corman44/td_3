@@ -84,6 +84,24 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                     },
                     children![
                         button(
+                            "Start",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Start))
+                        ),
+                        button(
+                            "Finish",
+                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Finish))
+                        ),
+                    ]
+                ),
+
+                // Second Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
+                        button(
                             "Vertical",
                             ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))
                         ),
@@ -93,7 +111,8 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-                // second Row
+
+                // Third Row
                 (
                     Node {
                         flex_direction: FlexDirection::Row,
@@ -110,7 +129,8 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-                // third Row
+
+                // Fourth Row
                 (
                     Node {
                         flex_direction: FlexDirection::Row,
@@ -127,7 +147,8 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-                // Fourth Row
+
+                // Fifth Row
                 (
                     Node {
                         flex_direction: FlexDirection::Row,
@@ -138,7 +159,8 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         button("Ground", ButtonType::Editor(TileType::Free)),
                     ]
                 ),
-                // Fifth Row
+
+                // Sixth Row
                 (
                     Node {
                         flex_direction: FlexDirection::Row,
@@ -183,7 +205,6 @@ fn editor_buttons(
                 }
                 _ => (),
             },
-            _ => (),
         }
         match interaction {
             Interaction::Pressed => {
@@ -271,7 +292,7 @@ fn save_map(
         return;
     }
 
-    let mut file = File::create("map_save.txt").expect("unable to create file.. ");
+    let mut file = File::create("maps/map_save.txt").expect("unable to create file.. ");
     for (tt, t_loc) in tile_query.iter() {
         match tt {
             TileType::EnemyMap(enemy_tile) => match enemy_tile {

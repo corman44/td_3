@@ -2,18 +2,16 @@ use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 use crate::{
     tilemap::{
-        EnemyTile, GameTilemap, TileLocation, TileType, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR
+        update_gametilemap, EnemyPath, EnemyTile, GameTilemap, MapState, TileLocation, TileType, UpdateColorMap, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR
     }, ui::{button, ButtonType, MenuType}, AppState
 };
 use bevy::{prelude::*, window::PrimaryWindow};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-// TODO add save functionality (and define format)
 // TODO don't allow saving unless a path is defined
 // TODO determine if Enemy Path is valid
 // TODO display message of reason for failed save
-// TODO add Load Map functionality
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -342,6 +340,10 @@ fn save_map(
 
 fn load_map(
     ev_load_map: EventReader<LoadMapEvent>,
+    mut enemy_path: ResMut<EnemyPath>,
+    mut map_nextstate: ResMut<NextState<MapState>>,
+    mut gtm: ResMut<GameTilemap>,
+    mut ev_update_colormap: EventWriter<UpdateColorMap>,
 ) {
     if ev_load_map.is_empty() {
         return;
@@ -354,5 +356,14 @@ fn load_map(
 
     let tilemap: SavedTileMap = serde_json::from_str(&contents).expect("unable to parse file.. ");
     info!("TileMap: {:?}", tilemap);
+
+    // format as GameTilemap
+    let mut new_gtm = GameTilemap::default();
+    for (tt, locs) in tilemap.0.iter() {
+        for loc in locs {
+            new_gtm.0.insert(*loc, tt.clone());
+        }
+    }
+    update_gametilemap(&mut gtm, &mut enemy_path, &new_gtm, &mut map_nextstate, &mut ev_update_colormap);
 }
 

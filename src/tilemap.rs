@@ -10,6 +10,10 @@ pub const HOVER_COLOR: Color = Color::srgb(0.1, 0.65, 0.2);
 pub const TILE_SCALE: f32 = 10.0;
 pub const MAP_SIZE: i32 = 12;
 
+
+#[derive(Debug, Clone, Event )]
+pub struct UpdateColorMap;
+
 /// enum for tile types
 #[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
 #[repr(u8)]
@@ -29,6 +33,7 @@ pub enum MapState {
     #[default]
     NotSpawned,
     Spawned,
+    Reloaded,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Copy, Hash, Serialize, Deserialize)]
@@ -51,6 +56,8 @@ pub enum TowerType {
     T3,
 }
 
+/// Tilemap resource
+/// Holds the tilemap data for 1 Global Tilemap
 #[derive(Debug, Resource, Clone, Default)]
 pub struct GameTilemap(pub HashMap<IVec2, TileType>);
 
@@ -73,14 +80,15 @@ impl GameTilemap {
 }
 
 pub struct Tilemap;
-
 impl Plugin for Tilemap {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GameTilemap::new(MAP_SIZE))
+        app
+            .insert_resource(GameTilemap::new(MAP_SIZE))
             .insert_resource(EnemyPath(None))
             .init_state::<MapState>()
+            .add_event::<UpdateColorMap>()
             .add_systems(Startup, setup_tilemap)
-            .add_systems(Update, spawn_map);
+            .add_systems(Update, (spawn_map, update_tile_colors));
     }
 }
 
@@ -125,6 +133,7 @@ fn spawn_map(
                     ))
                     .observe(alter_tile::<Pointer<Pressed>>())
                     .observe(recolor::<Pointer<Over>>(0.15))
+                    // FIXME hover over loaded tiles are causing it to be recolored as GROUND...
                     .observe(recolor::<Pointer<Out>>(0.0));
 
                 // Spawn Ambient Light
@@ -204,7 +213,11 @@ fn alter_tile<E>() -> impl Fn(
 #[derive(Debug, Resource, Clone)]
 pub struct EnemyPath(Option<Vec<IVec2>>);
 
-fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>) {
+//// System to setup the tilemap on Startup
+fn setup_tilemap(
+    mut gtm: ResMut<GameTilemap>,
+    mut enemy_path: ResMut<EnemyPath>
+) {
     let default_path = Some(vec![
         IVec2::new(1, 1),
         IVec2::new(1, 2),
@@ -237,4 +250,61 @@ fn setup_tilemap(mut gtm: ResMut<GameTilemap>, mut enemy_path: ResMut<EnemyPath>
             gtm.0.insert(*tile, TileType::EnemyMap(EnemyTile::Vertical));
         }
     }
+}
+
+/// Callable function to update the GameTilemap
+pub fn update_gametilemap(
+    gtm: &mut ResMut<GameTilemap>,
+    enemy_path: &mut ResMut<EnemyPath>,
+    loaded_map: &GameTilemap,
+    map_nextstate: &mut ResMut<NextState<MapState>>, 
+    ev_update_colormap: &mut EventWriter<UpdateColorMap>,
+) {
+    gtm.0 = loaded_map.0.clone();
+    map_nextstate.set(MapState::Reloaded);
+    enemy_path.0 = Some(vec![]);
+
+    // update EnemyPath with latest GTM
+    for (t_loc, tt) in gtm.0.iter() {
+        if let TileType::EnemyMap(_et) = tt {
+            enemy_path.0.as_mut().unwrap().push(*t_loc);
+        }
+    }
+
+    ev_update_colormap.write(UpdateColorMap);
+}
+
+/// System to update the colors of the tiles based on their type
+/// Triggered by the UpdateColorMap event
+pub fn update_tile_colors(
+    ev_update_colormap: EventReader<UpdateColorMap>,
+    gtm: Res<GameTilemap>,
+    mut query: Query<(&TileLocation, &mut MeshMaterial3d<StandardMaterial>)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut next_map_state: ResMut<NextState<MapState>>,
+) {
+    if ev_update_colormap.is_empty() {
+        return;
+    }
+
+    // Update the colors of the tiles based on their type
+    for (tile_loc, mut mat) in query.iter_mut() {
+        let tile = gtm.0.get(&tile_loc.0).unwrap();
+        match tile {
+            TileType::EnemyMap(_et) => {
+                mat.0 = materials.add(ENEMY_TILE_COLOR);
+            }
+            TileType::Blocked => {
+                mat.0 = materials.add(BLOCKED_TILE_COLOR);
+            }
+            TileType::Free => {
+                mat.0 = materials.add(GROUND_TILE_COLOR);
+            }
+            TileType::Tower(_tt) => {
+                mat.0 = materials.add(GROUND_TILE_COLOR);
+            }
+        }
+    }
+
+    next_map_state.set(MapState::Spawned);
 }

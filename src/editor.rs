@@ -9,9 +9,13 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-// TODO don't allow saving unless a path is defined
+// TODO improve MiniTile (add border, fix offset and movement)
+// TODO add file explorer for saving/loading maps
+// TODO add clear map button and drop down for preexisting maps to start from
+
+// Stretch
 // TODO determine if Enemy Path is valid
-// TODO display message of reason for failed save
+// TODO don't allow saving unless a path is defined
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);

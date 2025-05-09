@@ -1,5 +1,6 @@
 use crate::{editor::{MiniTile, MiniTileState}, StartGameEvent};
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub const BLOCKED_TILE_COLOR: Color = Color::srgb(0.88, 0.88, 0.88);
@@ -10,7 +11,7 @@ pub const TILE_SCALE: f32 = 10.0;
 pub const MAP_SIZE: i32 = 12;
 
 /// enum for tile types
-#[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy)]
+#[derive(Debug, Component, Clone, Default, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum TileType {
     EnemyMap(EnemyTile),
@@ -30,7 +31,7 @@ pub enum MapState {
     Spawned,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Copy)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Copy, Hash, Serialize, Deserialize)]
 pub enum EnemyTile {
     Start,
     TopLeft,
@@ -43,7 +44,7 @@ pub enum EnemyTile {
     Finish,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, Hash, Serialize, Deserialize)]
 pub enum TowerType {
     T1,
     T2,

@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write};
+use std::{collections::HashMap, fs::File, io::{Read, Write}};
 
 use crate::{
     tilemap::{
@@ -6,6 +6,8 @@ use crate::{
     }, ui::{button, ButtonType, MenuType}, AppState
 };
 use bevy::{prelude::*, window::PrimaryWindow};
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 // TODO add save functionality (and define format)
 // TODO don't allow saving unless a path is defined
@@ -20,11 +22,26 @@ pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 #[derive(Debug, Component, Event)]
 struct SaveMapEvent;
 
+#[derive(Debug, Component, Event)]
+struct LoadMapEvent;
 #[derive(Debug, Component)]
 struct EditorUI;
 
 #[derive(Debug, Component)]
 pub struct MiniTile;
+
+#[serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SavedTileMap(
+    #[serde_as(as = "Vec<(_, _)>")]
+    pub HashMap<TileType, Vec<IVec2>>
+);
+
+impl SavedTileMap {
+    pub fn new() -> Self {
+        SavedTileMap(HashMap::new())
+    }
+}
 
 /// Usage:
 /// Click a Tile Type (Enemy Path, Free, Rock, Water, etc.) then a small version of that tile follows the cursor while selected
@@ -36,8 +53,9 @@ impl Plugin for Editor {
         app
             .init_state::<MiniTileState>()
             .add_event::<SaveMapEvent>()
+            .add_event::<LoadMapEvent>()
             .add_systems(Update, setup)
-            .add_systems(Update, (editor_buttons, save_map).run_if(in_state(AppState::InEditor)))
+            .add_systems(Update, (editor_buttons, save_map, load_map).run_if(in_state(AppState::InEditor)))
             .add_systems(
                 Update,
                 minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)),
@@ -190,18 +208,29 @@ fn editor_buttons(
     mut minitile_state: ResMut<NextState<MiniTileState>>,
     minitile: Query<Entity, With<MiniTile>>,
     mut ev_save_map: EventWriter<SaveMapEvent>,
+    mut ev_load_map: EventWriter<LoadMapEvent>,
 ) {
     for (button_type, mut _color, interaction) in buttons.iter_mut() {
         let mut tile_type = &TileType::Free;
         match button_type {
-            ButtonType::Editor(tt) => tile_type = tt,
+            ButtonType::Editor(tt) => tile_type = &tt,
             ButtonType::Menu(menu) => match menu {
                 MenuType::Save => {
-                    // TODO trigger save map event
+                    match interaction {
+                        Interaction::Pressed => {
+                            ev_save_map.write(SaveMapEvent);
+                        }
+                        _ => (),
+                    }
                 }
                 MenuType::Load => {
-                    // TODO implement load map functionality
-                    ev_save_map.write(SaveMapEvent);
+                    match interaction {
+                        Interaction::Pressed => {
+                            info!("Loading Map");
+                            ev_load_map.write(LoadMapEvent);
+                        }
+                        _ => (),
+                    }
                 }
                 _ => (),
             },
@@ -292,43 +321,38 @@ fn save_map(
         return;
     }
 
+    // TODO store the map in a more structured way:
+    //   - Type: location, location, location
+    let tilemap: SavedTileMap = tile_query
+        .iter()
+        .map(|(tt, t_loc)| (tt.clone(), t_loc.clone().0))
+        .collect::<Vec<(TileType, IVec2)>>()
+        .into_iter()
+        .fold(SavedTileMap::new(), |mut acc, (tt, t_loc )| {
+            acc.0.entry(tt).or_insert_with(Vec::new).push(t_loc);
+            acc
+        });
+    // info!("TileMap: {:?}", tilemap);
+
     let mut file = File::create("maps/map_save.txt").expect("unable to create file.. ");
-    for (tt, t_loc) in tile_query.iter() {
-        match tt {
-            TileType::EnemyMap(enemy_tile) => match enemy_tile {
-                EnemyTile::Start => {
-                    let _ =
-                        file.write(&format!("S, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                }
-                EnemyTile::TopLeft => {
-                    let _ = file.write(&format!("TL, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::TopRight => {
-                    let _ = file.write(&format!("TR, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::BottomLeft => {
-                    let _ = file.write(&format!("BL, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::BottomRight => {
-                    let _ = file.write(&format!("BR, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::Horizontal => {
-                    let _ = file.write(&format!("H, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::Vertical => {
-                    let _ = file.write(&format!("V, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-                EnemyTile::Finish => {
-                    let _ = file.write(&format!("F, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-                },
-            },
-            TileType::Blocked => {
-                let _ = file.write(&format!("B, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-            }
-            TileType::Free => {
-                let _ = file.write(&format!("F, ({},{})\n", t_loc.0.x, t_loc.0.y).into_bytes());
-            }
-            _ => (),
-        }
-    }
+    let _ = file.write(
+        serde_json::to_string(&tilemap).unwrap().as_bytes()
+    );
 }
+
+fn load_map(
+    ev_load_map: EventReader<LoadMapEvent>,
+) {
+    if ev_load_map.is_empty() {
+        return;
+    }
+
+    // read contents from map_save.txt
+    let mut file = File::open("maps/map_save.txt").expect("unable to open file.. ");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).expect("unable to read file.. ");
+
+    let tilemap: SavedTileMap = serde_json::from_str(&contents).expect("unable to parse file.. ");
+    info!("TileMap: {:?}", tilemap);
+}
+

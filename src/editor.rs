@@ -305,7 +305,7 @@ fn minitile_cursor_follow(
                 transform.translation.x = (pos.x / 10. - 34.) * 160. / 115.;
                 transform.translation.z = (pos.y / 10. - 3.) * 120. / 84.;
             }
-            None => info!("Cursor Position not found.. "),
+            None => (),
         },
         _ => (),
     }
@@ -355,7 +355,7 @@ fn load_map(
     file.read_to_string(&mut contents).expect("unable to read file.. ");
 
     let tilemap: SavedTileMap = serde_json::from_str(&contents).expect("unable to parse file.. ");
-    info!("TileMap: {:?}", tilemap);
+    // info!("TileMap: {:?}", tilemap);
 
     // format as GameTilemap
     let mut new_gtm = GameTilemap::default();

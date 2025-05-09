@@ -154,20 +154,16 @@ fn recolor<E>(
     scale: f32,
 ) -> impl Fn(
     Trigger<E>,
-    Query<&mut MeshMaterial3d<StandardMaterial>>,
+    Query<(&TileType, &mut MeshMaterial3d<StandardMaterial>)>,
     ResMut<Assets<StandardMaterial>>,
-    Query<&TileType>,
 ) {
-    move |trigger, mut query, mut materials, tile_type| {
+    move |trigger, mut query, mut materials| {
         let ent = trigger.target();
-        let mut mat = query
+        let (tt_ent, mut mat) = query
             .get_mut(ent)
-            .expect(&format!("Expected material found in Entity: {:?}", ent));
-        let tile_type = tile_type
-            .get(ent)
-            .expect(&format!("no TileType found for Entity: {:?}", ent));
+            .expect(&format!("Expected (TileType, Material) found in Entity: {:?}", ent));
 
-        match tile_type {
+        match *tt_ent {
             TileType::EnemyMap(_enemy_tile) => {
                 mat.0 = materials.add(ENEMY_TILE_COLOR.darker(scale));
             }
@@ -279,7 +275,7 @@ pub fn update_gametilemap(
 pub fn update_tile_colors(
     ev_update_colormap: EventReader<UpdateColorMap>,
     gtm: Res<GameTilemap>,
-    mut query: Query<(&TileLocation, &mut MeshMaterial3d<StandardMaterial>)>,
+    mut query: Query<(&TileLocation, &mut TileType, &mut MeshMaterial3d<StandardMaterial>)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut next_map_state: ResMut<NextState<MapState>>,
 ) {
@@ -288,20 +284,25 @@ pub fn update_tile_colors(
     }
 
     // Update the colors of the tiles based on their type
-    for (tile_loc, mut mat) in query.iter_mut() {
+    for (tile_loc, mut tt, mut mat) in query.iter_mut() {
         let tile = gtm.0.get(&tile_loc.0).unwrap();
         match tile {
             TileType::EnemyMap(_et) => {
                 mat.0 = materials.add(ENEMY_TILE_COLOR);
+                // set tt to tile
+                *tt = tile.clone();
             }
             TileType::Blocked => {
                 mat.0 = materials.add(BLOCKED_TILE_COLOR);
+                *tt = tile.clone();
             }
             TileType::Free => {
                 mat.0 = materials.add(GROUND_TILE_COLOR);
+                *tt = tile.clone();
             }
             TileType::Tower(_tt) => {
                 mat.0 = materials.add(GROUND_TILE_COLOR);
+                *tt = tile.clone();
             }
         }
     }

@@ -93,6 +93,9 @@ pub enum MenuType {
     Exit,
 }
 
+#[derive(Debug, Component, Default)]
+pub struct PreviousButtonState(pub Interaction);
+
 fn menu_button_system(
     mut app_state: ResMut<NextState<AppState>>,
     mut buttons: Query<
@@ -101,6 +104,7 @@ fn menu_button_system(
             &mut BackgroundColor,
             &ButtonType,
             &mut Visibility,
+            &mut PreviousButtonState,
         ),
         (Changed<Interaction>, With<Button>),
     >,
@@ -108,7 +112,7 @@ fn menu_button_system(
     mut exit: EventWriter<AppExit>,
     mut nodes: Query<&mut Node, With<MenuUI>>,
 ) {
-    for (interaction, mut color, button_type, mut vis) in buttons.iter_mut() {
+    for (interaction, mut color, button_type, mut vis, mut prev_butt_state) in buttons.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
@@ -144,6 +148,7 @@ fn menu_button_system(
                 *color = NORMAL_BUTTON.into();
             }
         }
+        prev_butt_state.0 = *interaction;
     }
 }
 
@@ -164,5 +169,6 @@ pub fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
         BorderColor(Color::BLACK),
         BorderRadius::MAX,
         BackgroundColor(NORMAL_BUTTON),
+        PreviousButtonState::default(),
     )
 }

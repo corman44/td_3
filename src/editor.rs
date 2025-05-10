@@ -1,11 +1,17 @@
-use std::{collections::HashMap, fs::File, io::{Read, Write}};
+use std::{
+    collections::HashMap,
+    env::current_dir,
+    fs::File,
+    io::{Read, Write},
+};
 
 use crate::{
     tilemap::{
         update_gametilemap, EnemyPath, EnemyTile, GameTilemap, MapState, TileLocation, TileType, UpdateColorMap, BLOCKED_TILE_COLOR, ENEMY_TILE_COLOR, GROUND_TILE_COLOR
-    }, ui::{button, ButtonType, MenuType}, AppState
+    }, ui::{button, ButtonType, MenuType, PreviousButtonState}, AppState
 };
 use bevy::{prelude::*, window::PrimaryWindow};
+use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -34,10 +40,7 @@ pub struct MiniTile;
 
 #[serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct SavedTileMap(
-    #[serde_as(as = "Vec<(_, _)>")]
-    pub HashMap<TileType, Vec<IVec2>>
-);
+pub struct SavedTileMap(#[serde_as(as = "Vec<(_, _)>")] pub HashMap<TileType, Vec<IVec2>>);
 
 impl SavedTileMap {
     pub fn new() -> Self {
@@ -52,12 +55,14 @@ pub struct Editor;
 
 impl Plugin for Editor {
     fn build(&self, app: &mut App) {
-        app
-            .init_state::<MiniTileState>()
+        app.init_state::<MiniTileState>()
             .add_event::<SaveMapEvent>()
             .add_event::<LoadMapEvent>()
             .add_systems(Update, setup)
-            .add_systems(Update, (editor_buttons, save_map, load_map).run_if(in_state(AppState::InEditor)))
+            .add_systems(
+                Update,
+                (editor_buttons, save_map, load_map).run_if(in_state(AppState::InEditor)),
+            )
             .add_systems(
                 Update,
                 minitile_cursor_follow.run_if(in_state(MiniTileState::Spawned)),
@@ -113,7 +118,6 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-
                 // Second Row
                 (
                     Node {
@@ -131,7 +135,6 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-
                 // Third Row
                 (
                     Node {
@@ -149,7 +152,6 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-
                 // Fourth Row
                 (
                     Node {
@@ -167,7 +169,6 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ),
                     ]
                 ),
-
                 // Fifth Row
                 (
                     Node {
@@ -179,7 +180,6 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         button("Ground", ButtonType::Editor(TileType::Free)),
                     ]
                 ),
-
                 // Sixth Row
                 (
                     Node {
@@ -202,7 +202,7 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
 fn editor_buttons(
     mut commands: Commands,
     mut buttons: Query<
-        (&ButtonType, &mut BackgroundColor, &Interaction),
+        (&ButtonType, &mut BackgroundColor, &Interaction, &mut PreviousButtonState),
         (Changed<Interaction>, With<Button>),
     >,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -212,28 +212,27 @@ fn editor_buttons(
     mut ev_save_map: EventWriter<SaveMapEvent>,
     mut ev_load_map: EventWriter<LoadMapEvent>,
 ) {
-    for (button_type, mut _color, interaction) in buttons.iter_mut() {
+    for (button_type, mut _color, interaction, mut prev_butt_state) in buttons.iter_mut() {
         let mut tile_type = &TileType::Free;
         match button_type {
             ButtonType::Editor(tt) => tile_type = &tt,
             ButtonType::Menu(menu) => match menu {
-                MenuType::Save => {
-                    match interaction {
-                        Interaction::Pressed => {
-                            ev_save_map.write(SaveMapEvent);
-                        }
-                        _ => (),
+                MenuType::Save => match interaction {
+                    Interaction::Pressed => {
+                        ev_save_map.write(SaveMapEvent);
                     }
-                }
-                MenuType::Load => {
-                    match interaction {
-                        Interaction::Pressed => {
+                    _ => (),
+                },
+                MenuType::Load => match interaction {
+                    Interaction::Pressed => {
+                        // FIXME not launching on first click, still triggers twice...
+                        if prev_butt_state.0 != Interaction::Pressed {
                             info!("Loading Map");
                             ev_load_map.write(LoadMapEvent);
                         }
-                        _ => (),
                     }
-                }
+                    _ => (),
+                },
                 _ => (),
             },
         }
@@ -255,6 +254,7 @@ fn editor_buttons(
             }
             _ => (),
         }
+       prev_butt_state.0 = *interaction;
     }
 }
 
@@ -315,31 +315,23 @@ fn minitile_cursor_follow(
     }
 }
 
-fn save_map(
-    tile_query: Query<(&TileType, &TileLocation)>,
-    ev_save_map: EventReader<SaveMapEvent>,
-) {
+fn save_map(tile_query: Query<(&TileType, &TileLocation)>, ev_save_map: EventReader<SaveMapEvent>) {
     if ev_save_map.is_empty() {
         return;
     }
 
-    // TODO store the map in a more structured way:
-    //   - Type: location, location, location
     let tilemap: SavedTileMap = tile_query
         .iter()
         .map(|(tt, t_loc)| (tt.clone(), t_loc.clone().0))
         .collect::<Vec<(TileType, IVec2)>>()
         .into_iter()
-        .fold(SavedTileMap::new(), |mut acc, (tt, t_loc )| {
+        .fold(SavedTileMap::new(), |mut acc, (tt, t_loc)| {
             acc.0.entry(tt).or_insert_with(Vec::new).push(t_loc);
             acc
         });
-    // info!("TileMap: {:?}", tilemap);
 
     let mut file = File::create("maps/map_save.txt").expect("unable to create file.. ");
-    let _ = file.write(
-        serde_json::to_string(&tilemap).unwrap().as_bytes()
-    );
+    let _ = file.write(serde_json::to_string(&tilemap).unwrap().as_bytes());
 }
 
 fn load_map(
@@ -353,13 +345,27 @@ fn load_map(
         return;
     }
 
-    // read contents from map_save.txt
-    let mut file = File::open("maps/map_save.txt").expect("unable to open file.. ");
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).expect("unable to read file.. ");
+    // get file and read contents
+    let cwd = current_dir().expect("unable to get current directory.. ");
+    let file_path = FileDialog::new()
+        .add_filter("text", &["txt"])
+        .set_directory(cwd.to_str().unwrap())
+        .pick_file()
+        .expect("unable to open file.. ");
 
-    let tilemap: SavedTileMap = serde_json::from_str(&contents).expect("unable to parse file.. ");
-    // info!("TileMap: {:?}", tilemap);
+    let mut file = File::open(
+        file_path
+        .to_str()
+        .unwrap()
+    ).expect("unable to open file.. ");
+    
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("unable to read file.. ");
+
+    let tilemap: SavedTileMap =
+        serde_json::from_str(&contents)
+        .expect(&format!("Unable to parse file; file: {:?}", file));
 
     // format as GameTilemap
     let mut new_gtm = GameTilemap::default();
@@ -368,6 +374,13 @@ fn load_map(
             new_gtm.0.insert(*loc, tt.clone());
         }
     }
-    update_gametilemap(&mut gtm, &mut enemy_path, &new_gtm, &mut map_nextstate, &mut ev_update_colormap);
-}
 
+    // update the gametilemap
+    update_gametilemap(
+        &mut gtm,
+        &mut enemy_path,
+        &new_gtm,
+        &mut map_nextstate,
+        &mut ev_update_colormap,
+    );
+}

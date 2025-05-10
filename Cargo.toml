@@ -11,7 +11,8 @@ glam = { version = "0.30.3"}
 bevy-inspector-egui = {version = "0.31.0"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0"}
-serde_with ={ version = "3.12.0" }
+serde_with ={ version = "3.12" }
+rfd = { version = "0.15.3" }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{cam_ctrl::CamState, tilemap::MapState, AppState};
+use crate::{cam_ctrl::CamState, editor::MiniTileState, tilemap::MapState, AppState};
 
 
 #[derive(Debug, Clone)]
@@ -17,6 +17,7 @@ fn print_state_changes(
     app_state: Res<State<AppState>>,
     cam_state: Res<State<CamState>>,
     map_state: Res<State<MapState>>,
+    mt_state:  Res<State<MiniTileState>>,
 ) {
     if app_state.is_changed() {
         info!("DBG: AppState {:?}", app_state.get());
@@ -26,6 +27,9 @@ fn print_state_changes(
     }
     if map_state.is_changed() {
         info!("DBG: MapState {:?}", map_state.get());
+    }
+    if mt_state.is_changed() {
+        info!("DBG: MiniTileState {:?}", mt_state.get());
     }
 
 }

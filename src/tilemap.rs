@@ -289,22 +289,18 @@ pub fn update_tile_colors(
         match tile {
             TileType::EnemyMap(_et) => {
                 mat.0 = materials.add(ENEMY_TILE_COLOR);
-                // set tt to tile
-                *tt = tile.clone();
             }
             TileType::Blocked => {
                 mat.0 = materials.add(BLOCKED_TILE_COLOR);
-                *tt = tile.clone();
             }
             TileType::Free => {
                 mat.0 = materials.add(GROUND_TILE_COLOR);
-                *tt = tile.clone();
             }
             TileType::Tower(_tt) => {
                 mat.0 = materials.add(GROUND_TILE_COLOR);
-                *tt = tile.clone();
             }
         }
+        *tt = tile.clone();
     }
 
     next_map_state.set(MapState::Spawned);

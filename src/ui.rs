@@ -32,6 +32,10 @@ impl Plugin for Ui {
                                 .or(input_just_pressed(KeyCode::Escape)),
                         ),
                 ),
+            )
+            .add_systems(
+                PostUpdate,
+                update_prev_button_state
             );
     }
 }
@@ -104,7 +108,6 @@ fn menu_button_system(
             &mut BackgroundColor,
             &ButtonType,
             &mut Visibility,
-            &mut PreviousButtonState,
         ),
         (Changed<Interaction>, With<Button>),
     >,
@@ -112,7 +115,7 @@ fn menu_button_system(
     mut exit: EventWriter<AppExit>,
     mut nodes: Query<&mut Node, With<MenuUI>>,
 ) {
-    for (interaction, mut color, button_type, mut vis, mut prev_butt_state) in buttons.iter_mut() {
+    for (interaction, mut color, button_type, mut vis) in buttons.iter_mut() {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();
@@ -148,7 +151,6 @@ fn menu_button_system(
                 *color = NORMAL_BUTTON.into();
             }
         }
-        prev_butt_state.0 = *interaction;
     }
 }
 
@@ -172,3 +174,14 @@ pub fn button<T: Into<String>>(text: T, typ: ButtonType) -> impl Bundle {
         PreviousButtonState::default(),
     )
 }
+
+/// runs Post Update to ensure all systems have an accurate PreviousButtonState
+fn update_prev_button_state(
+    button_query: Query<(&mut PreviousButtonState, &Interaction), With<Button>>,
+) {
+    for (mut prev_butt_stat, interaction) in button_query {
+        prev_butt_stat.0 = interaction.clone();
+    }
+
+}
+

@@ -202,7 +202,7 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
 fn editor_buttons(
     mut commands: Commands,
     mut buttons: Query<
-        (&ButtonType, &mut BackgroundColor, &Interaction, &mut PreviousButtonState),
+        (&ButtonType, &mut BackgroundColor, &Interaction, &PreviousButtonState),
         (Changed<Interaction>, With<Button>),
     >,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -212,10 +212,31 @@ fn editor_buttons(
     mut ev_save_map: EventWriter<SaveMapEvent>,
     mut ev_load_map: EventWriter<LoadMapEvent>,
 ) {
-    for (button_type, mut _color, interaction, mut prev_butt_state) in buttons.iter_mut() {
+    for (button_type, mut _color, interaction, prev_butt_state) in buttons.iter_mut() {
         let mut tile_type = &TileType::Free;
+
+        // button press handling
         match button_type {
-            ButtonType::Editor(tt) => tile_type = &tt,
+            ButtonType::Editor(tt) => {
+                tile_type = &tt;
+                match interaction {
+                    Interaction::Pressed => {
+                        for mt in minitile {
+                            commands.entity(mt).despawn();
+                        }
+
+                        // then spawn a new one
+                        spawn_minitile(
+                            &mut commands,
+                            &mut meshes,
+                            &mut materials,
+                            &tile_type,
+                            &mut minitile_state,
+                        );
+                    }
+                    _ => (),
+                }
+            },
             ButtonType::Menu(menu) => match menu {
                 MenuType::Save => match interaction {
                     Interaction::Pressed => {
@@ -225,9 +246,9 @@ fn editor_buttons(
                 },
                 MenuType::Load => match interaction {
                     Interaction::Pressed => {
-                        // FIXME not launching on first click, still triggers twice...
+                        // info!("LoadButton Pressed; prev_button State: {:?}",prev_butt_state.0);
                         if prev_butt_state.0 != Interaction::Pressed {
-                            info!("Loading Map");
+                            // info!("Loading Map");
                             ev_load_map.write(LoadMapEvent);
                         }
                     }
@@ -236,25 +257,6 @@ fn editor_buttons(
                 _ => (),
             },
         }
-        match interaction {
-            Interaction::Pressed => {
-                // first need to despawn the existing mt
-                for mt in minitile {
-                    commands.entity(mt).despawn();
-                }
-
-                // then spawn a new one
-                spawn_minitile(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &tile_type,
-                    &mut minitile_state,
-                );
-            }
-            _ => (),
-        }
-       prev_butt_state.0 = *interaction;
     }
 }
 
@@ -335,7 +337,7 @@ fn save_map(tile_query: Query<(&TileType, &TileLocation)>, ev_save_map: EventRea
 }
 
 fn load_map(
-    ev_load_map: EventReader<LoadMapEvent>,
+    mut ev_load_map: EventReader<LoadMapEvent>,
     mut enemy_path: ResMut<EnemyPath>,
     mut map_nextstate: ResMut<NextState<MapState>>,
     mut gtm: ResMut<GameTilemap>,
@@ -344,6 +346,7 @@ fn load_map(
     if ev_load_map.is_empty() {
         return;
     }
+    // info!("ev_load_map: {:?}",ev_load_map);
 
     // get file and read contents
     let cwd = current_dir().expect("unable to get current directory.. ");
@@ -383,4 +386,7 @@ fn load_map(
         &mut map_nextstate,
         &mut ev_update_colormap,
     );
+
+    // clear event to not trigger this function again
+    ev_load_map.clear();
 }

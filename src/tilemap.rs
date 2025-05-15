@@ -34,6 +34,8 @@ pub enum MapState {
     NotSpawned,
     Spawned,
     Reloaded,
+    NeedsVerify,
+    VerifyFailed,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Copy, Hash, Serialize, Deserialize)]
@@ -133,7 +135,6 @@ fn spawn_map(
                     ))
                     .observe(alter_tile::<Pointer<Pressed>>())
                     .observe(recolor::<Pointer<Over>>(0.15))
-                    // FIXME hover over loaded tiles are causing it to be recolored as GROUND...
                     .observe(recolor::<Pointer<Out>>(0.0));
 
                 // Spawn Ambient Light
@@ -248,7 +249,12 @@ fn setup_tilemap(
     }
 }
 
-/// Callable function to update the GameTilemap
+/// Callable function to update the GameTilemap and EnemyPath
+/// Load Map Sequence
+/// FIXME improve below sequence
+/// 1. Map File Selected
+/// 2. Load Map, update GTM and Enemy Path -> MapState::NeedsVerify
+/// 3. Map Verification Occurs -> MapState::Reloaded
 pub fn update_gametilemap(
     gtm: &mut ResMut<GameTilemap>,
     enemy_path: &mut ResMut<EnemyPath>,
@@ -257,7 +263,7 @@ pub fn update_gametilemap(
     ev_update_colormap: &mut EventWriter<UpdateColorMap>,
 ) {
     gtm.0 = loaded_map.0.clone();
-    map_nextstate.set(MapState::Reloaded);
+    map_nextstate.set(MapState::NeedsVerify);
     enemy_path.0 = Some(vec![]);
 
     // update EnemyPath with latest GTM

@@ -48,6 +48,7 @@ impl SavedTileMap {
     }
 }
 
+
 /// Usage:
 /// Click a Tile Type (Enemy Path, Free, Rock, Water, etc.) then a small version of that tile follows the cursor while selected
 /// when clicking a tile the tile type is applied
@@ -71,6 +72,10 @@ impl Plugin for Editor {
                 // TODO alter despawn to utilize an event system instead of a state system
                 Update,
                 despawn_minitile.run_if(in_state(MiniTileState::Despawn)),
+            )
+            .add_systems(
+                Update,
+                map_verify.run_if(in_state(MapState::NeedsVerify))
             );
     }
 }
@@ -389,4 +394,58 @@ fn load_map(
 
     // clear event to not trigger this function again
     ev_load_map.clear();
+}
+
+fn map_verify(
+    gtm: Res<GameTilemap>,
+    mut map_nextstate: ResMut<NextState<MapState>>,
+) {
+    // FIXME need to check latest loaded map (maybe temp version of GTM intead of game version of GTM)
+    // collect enemy positions
+    let mut enemy_tiles = gtm.0.iter()
+            .filter_map(|(loc, tt)| {
+                if let TileType::EnemyMap(enemy_tile) = tt {
+                    Some((loc, enemy_tile))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<(&IVec2, &EnemyTile)>>();
+    
+    // find start
+    let starts = enemy_tiles.iter().filter(|(_loc, et)| *et == &EnemyTile::Start).collect::<Vec<_>>();
+    let start = starts.first().expect("No Start found in Loaded Map");
+    info!("Enemy Tiles: {:?}", enemy_tiles);
+    info!("Start: {:?}", start);
+
+    if check_valid_neighbor(start.0, &mut enemy_tiles) {
+        map_nextstate.set(MapState::Reloaded);
+    }
+    else {
+        map_nextstate.set(MapState::VerifyFailed);
+        info!("Failed to verify Loaded Map..");
+    }
+}
+
+fn check_valid_neighbor(loc: &IVec2, tiles: &mut Vec<(&IVec2, &EnemyTile)>
+) -> bool {
+    for (i_loc, tile) in tiles.clone() {
+        info!("Checking Tile: {:?}, {:?}", i_loc, tile);
+        if (loc.x - i_loc.x).abs() <= 1 &&
+            (loc.y - i_loc.y).abs() <= 1 {
+                // location is neighbor
+                info!("Has Valid Neighbor");
+                if *tile == EnemyTile::Finish {
+                    return true
+                } else {
+                    let new_loc = i_loc;
+                    if let Some(idx) = tiles.iter().position(|(l,t)| l == &i_loc && t == &tile) {
+                        tiles.remove(idx);
+                    }
+                    return check_valid_neighbor(new_loc, tiles);
+                }
+        }
+    }
+    info!("No valid neighbor found");
+    return false;
 }

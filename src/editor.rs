@@ -16,12 +16,6 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 // TODO improve MiniTile (add border, fix offset and movement)
-// TODO add file explorer for saving/loading maps
-// TODO add clear map button and drop down for preexisting maps to start from
-
-// Stretch
-// TODO determine if Enemy Path is valid
-// TODO don't allow saving unless a path is defined
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -32,6 +26,10 @@ struct SaveMapEvent;
 
 #[derive(Debug, Component, Event)]
 struct LoadMapEvent;
+
+#[derive(Debug, Component, Event)]
+struct ClearMapEvent;
+
 #[derive(Debug, Component)]
 struct EditorUI;
 
@@ -59,10 +57,11 @@ impl Plugin for Editor {
         app.init_state::<MiniTileState>()
             .add_event::<SaveMapEvent>()
             .add_event::<LoadMapEvent>()
+            .add_event::<ClearMapEvent>()
             .add_systems(Update, setup)
             .add_systems(
                 Update,
-                (editor_buttons, save_map, load_map).run_if(in_state(AppState::InEditor)),
+                (editor_buttons, save_map, load_map, clear_map).run_if(in_state(AppState::InEditor)),
             )
             .add_systems(
                 Update,
@@ -192,6 +191,16 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
+                        button("Clear", ButtonType::Menu(MenuType::Clear)),
+                    ]
+                ),
+                // Seventh Row
+                (
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    children![
                         button("Save", ButtonType::Menu(MenuType::Save)),
                         button("Load", ButtonType::Menu(MenuType::Load)),
                     ]
@@ -216,14 +225,13 @@ fn editor_buttons(
     minitile: Query<Entity, With<MiniTile>>,
     mut ev_save_map: EventWriter<SaveMapEvent>,
     mut ev_load_map: EventWriter<LoadMapEvent>,
+    mut ev_clear_map: EventWriter<ClearMapEvent>,
 ) {
     for (button_type, mut _color, interaction, prev_butt_state) in buttons.iter_mut() {
-        let mut tile_type = &TileType::Free;
 
         // button press handling
         match button_type {
             ButtonType::Editor(tt) => {
-                tile_type = &tt;
                 match interaction {
                     Interaction::Pressed => {
                         for mt in minitile {
@@ -235,7 +243,7 @@ fn editor_buttons(
                             &mut commands,
                             &mut meshes,
                             &mut materials,
-                            &tile_type,
+                            tt,
                             &mut minitile_state,
                         );
                     }
@@ -259,6 +267,14 @@ fn editor_buttons(
                     }
                     _ => (),
                 },
+                MenuType::Clear => match interaction {
+                    Interaction::Pressed => {
+                        if prev_butt_state.0 != Interaction::Pressed {
+                            ev_clear_map.write(ClearMapEvent);
+                        }
+                    },
+                    _ => (),
+                }
                 _ => (),
             },
         }
@@ -337,8 +353,11 @@ fn save_map(tile_query: Query<(&TileType, &TileLocation)>, ev_save_map: EventRea
             acc
         });
 
-    let mut file = File::create("maps/map_save.txt").expect("unable to create file.. ");
-    let _ = file.write(serde_json::to_string(&tilemap).unwrap().as_bytes());
+    if let Some(mut file) = File::create("maps/map_save.txt").ok() {
+        let _ = file.write(serde_json::to_string(&tilemap).unwrap().as_bytes());
+    } else {
+        info!("Unable to save file 'maps/map_save.txt'");
+    }
 }
 
 fn load_map(
@@ -354,6 +373,7 @@ fn load_map(
     // info!("ev_load_map: {:?}",ev_load_map);
 
     // get file and read contents
+    // FIXME replace .expects with if let Some()
     let cwd = current_dir().expect("unable to get current directory.. ");
     let file_path = FileDialog::new()
         .add_filter("text", &["txt"])
@@ -413,39 +433,60 @@ fn map_verify(
             .collect::<Vec<(&IVec2, &EnemyTile)>>();
     
     // find start
-    let starts = enemy_tiles.iter().filter(|(_loc, et)| *et == &EnemyTile::Start).collect::<Vec<_>>();
-    let start = starts.first().expect("No Start found in Loaded Map");
-    info!("Enemy Tiles: {:?}", enemy_tiles);
-    info!("Start: {:?}", start);
-
-    if check_valid_neighbor(start.0, &mut enemy_tiles) {
-        map_nextstate.set(MapState::Reloaded);
-    }
-    else {
-        map_nextstate.set(MapState::VerifyFailed);
-        info!("Failed to verify Loaded Map..");
+    let start_idx = enemy_tiles.iter().position(|(_loc, et)| *et == &EnemyTile::Start);
+    if let Some(idx) = start_idx {
+        // pop the start location from enemy_tiles (saves 1 iteration?)
+        let start = enemy_tiles.remove(idx);
+        if check_valid_neighbor(start.0, &mut enemy_tiles) {
+            map_nextstate.set(MapState::Reloaded);
+            info!("Map Valid");
+        }
+        else {
+            map_nextstate.set(MapState::VerifyFailed);
+            info!("Map Not Valid");
+        }
     }
 }
 
 fn check_valid_neighbor(loc: &IVec2, tiles: &mut Vec<(&IVec2, &EnemyTile)>
 ) -> bool {
+    // info!("Checking: {:?}", loc);
     for (i_loc, tile) in tiles.clone() {
-        info!("Checking Tile: {:?}, {:?}", i_loc, tile);
-        if (loc.x - i_loc.x).abs() <= 1 &&
-            (loc.y - i_loc.y).abs() <= 1 {
-                // location is neighbor
-                info!("Has Valid Neighbor");
-                if *tile == EnemyTile::Finish {
-                    return true
-                } else {
-                    let new_loc = i_loc;
-                    if let Some(idx) = tiles.iter().position(|(l,t)| l == &i_loc && t == &tile) {
-                        tiles.remove(idx);
-                    }
-                    return check_valid_neighbor(new_loc, tiles);
+        // info!("Checking Tile: {:?}, {:?}", i_loc, tile);
+        if ((loc.x - i_loc.x).abs() <= 1 && (loc.y - i_loc.y).abs() == 0) ||
+           ((loc.x - i_loc.x).abs() == 0 && (loc.y - i_loc.y).abs() <= 1)
+        {
+            if *tile == EnemyTile::Finish {
+                return true
+            } else {
+                let new_loc = i_loc;
+                if let Some(idx) = tiles.iter().position(|(l,t)| l == &i_loc && t == &tile) {
+                    tiles.remove(idx);
                 }
+                return check_valid_neighbor(new_loc, tiles);
+            }
         }
     }
     info!("No valid neighbor found");
     return false;
+}
+
+fn clear_map(
+    ev_clear_map: EventReader<ClearMapEvent>,
+    mut gtm: ResMut<GameTilemap>,
+    mut ev_update_colormap: EventWriter<UpdateColorMap>,
+) {
+    if ev_clear_map.is_empty() {
+        return
+    }
+
+    // clear GTM
+    for (_loc, tt) in gtm.0.iter_mut() {
+        *tt = TileType::Free;
+    }
+
+    // update map visuals
+    ev_update_colormap.write(UpdateColorMap);
+
+
 }

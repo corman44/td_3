@@ -20,16 +20,16 @@ fn print_state_changes(
     mt_state:  Res<State<MiniTileState>>,
 ) {
     if app_state.is_changed() {
-        info!("DBG: AppState {:?}", app_state.get());
+        info!("AppState: {:?}", app_state.get());
     }
     if cam_state.is_changed() {
-        info!("DBG: CamState {:?}", cam_state.get());
+        info!("CamState: {:?}", cam_state.get());
     }
     if map_state.is_changed() {
-        info!("DBG: MapState {:?}", map_state.get());
+        info!("MapState: {:?}", map_state.get());
     }
     if mt_state.is_changed() {
-        info!("DBG: MiniTileState {:?}", mt_state.get());
+        info!("MiniTileState: {:?}", mt_state.get());
     }
 
 }

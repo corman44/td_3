@@ -95,6 +95,7 @@ pub enum MenuType {
     Save,
     Load,
     Exit,
+    Clear,
 }
 
 #[derive(Debug, Component, Default)]

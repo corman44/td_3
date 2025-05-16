@@ -360,6 +360,40 @@ fn save_map(tile_query: Query<(&TileType, &TileLocation)>, ev_save_map: EventRea
     }
 }
 
+fn get_saved_map(
+    file: Option<&File>,
+) -> SavedTileMap {
+    let mut contents = String::new();
+
+    if let Some(f) = file {
+        // file provided
+        let mut f_file = f;
+        f_file.read_to_string(&mut contents)
+            .expect("unable to read file.. ");
+    } else {
+        // no file provided, open dialog
+        let cwd = current_dir().expect("unable to get current directory.. ");
+        let file_path = FileDialog::new()
+            .add_filter("text", &["txt"])
+            .set_directory(cwd.to_str().unwrap())
+            .pick_file()
+            .expect("unable to open file.. ");
+
+        let mut temp_bind = File::open(
+            file_path
+            .to_str()
+            .unwrap()
+        ).expect("unable to open file.. ");
+        temp_bind.read_to_string(&mut contents)
+            .expect("unable to read file.. ");
+    }
+
+    let tilemap: SavedTileMap =
+        serde_json::from_str(&contents)
+        .expect(&format!("Unable to parse file; file: {:?}", file));
+    tilemap
+}
+
 fn load_map(
     mut ev_load_map: EventReader<LoadMapEvent>,
     mut enemy_path: ResMut<EnemyPath>,
@@ -370,30 +404,12 @@ fn load_map(
     if ev_load_map.is_empty() {
         return;
     }
-    // info!("ev_load_map: {:?}",ev_load_map);
+
+
+    let tilemap = get_saved_map(None);
 
     // get file and read contents
     // FIXME replace .expects with if let Some()
-    let cwd = current_dir().expect("unable to get current directory.. ");
-    let file_path = FileDialog::new()
-        .add_filter("text", &["txt"])
-        .set_directory(cwd.to_str().unwrap())
-        .pick_file()
-        .expect("unable to open file.. ");
-
-    let mut file = File::open(
-        file_path
-        .to_str()
-        .unwrap()
-    ).expect("unable to open file.. ");
-    
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .expect("unable to read file.. ");
-
-    let tilemap: SavedTileMap =
-        serde_json::from_str(&contents)
-        .expect(&format!("Unable to parse file; file: {:?}", file));
 
     // format as GameTilemap
     let mut new_gtm = GameTilemap::default();
@@ -490,3 +506,70 @@ fn clear_map(
 
 
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_map_validation() {
+        // load in saved maps
+        let simp = get_saved_map(Some(
+            &File::open("maps/simple1.txt").expect("no simple1.txt map found")
+        ));
+        let spiral = get_saved_map(Some(
+            &File::open("maps/spiral.txt").expect("no simple1.txt map found")
+        ));
+        let ground = get_saved_map(Some(
+            &File::open("maps/ground.txt").expect("no simple1.txt map found")
+        ));
+
+        let simp_tm = simp.0.iter()
+            .filter_map(|(tt, v_loc)| match tt {
+                TileType::EnemyMap(enemy_tile) => {
+                    Some(v_loc.iter().map(move |loc| (loc, enemy_tile)).into_iter())
+                },
+                _ => None
+            })
+            .flatten()
+            .collect::<Vec<(&IVec2, &EnemyTile)>>();
+
+
+        let spir_tm = spiral.0.iter()
+            .filter_map(|(tt, v_loc)| match tt {
+                TileType::EnemyMap(enemy_tile) => {
+                    Some(v_loc.iter().map(move |loc| (loc, enemy_tile)).into_iter())
+                },
+                _ => None
+            })
+            .flatten()
+            .collect::<Vec<(&IVec2, &EnemyTile)>>();
+
+        let grnd_tm = ground.0.iter()
+            .filter_map(|(tt, v_loc)| match tt {
+                TileType::EnemyMap(enemy_tile) => {
+                    Some(v_loc.iter().map(move |loc| (loc, enemy_tile)).into_iter())
+                },
+                _ => None
+            })
+            .flatten()
+            .collect::<Vec<(&IVec2, &EnemyTile)>>();
+
+
+        for mut enemy_tiles in [simp_tm, spir_tm] {
+            let start_idx = enemy_tiles.iter().position(|(_loc, et)| *et == &EnemyTile::Start);
+            if let Some(idx) = start_idx {
+                // pop the start location from enemy_tiles (saves 1 iteration?)
+                let start = enemy_tiles.remove(idx);
+                assert!(check_valid_neighbor(&start.0, &mut enemy_tiles));
+            } else {
+                assert!(false);
+            }
+        }
+
+        // negative tests
+        let start_idx = grnd_tm.iter().position(|(_loc, et)| *et == &EnemyTile::Start);
+        assert_eq!(start_idx, None); 
+    }
+}
+

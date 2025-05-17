@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use td_3::{cam_ctrl::CamCtrl, editor::Editor, game_debug::GameDebug, tilemap::Tilemap, ui::Ui, AppState};
+use td_3::{cam_ctrl::CamCtrl, editor::Editor, enemy::EnemyPlugin, game_debug::GameDebug, tilemap::Tilemap, ui::Ui, AppState};
 
 // Overall TODOs
 // TODO create a level editor (save and loading levels)
@@ -12,6 +12,7 @@ fn main() {
             // RapierPhysicsPlugin::<NoUserData>::default(),
             // RapierDebugRenderPlugin::default(),
             Editor,
+            EnemyPlugin,
             MeshPickingPlugin,
             Tilemap,
             Ui,

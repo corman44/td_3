@@ -208,7 +208,7 @@ fn alter_tile<E>() -> impl Fn(
 }
 
 #[derive(Debug, Resource, Clone)]
-pub struct EnemyPath(Option<Vec<IVec2>>);
+pub struct EnemyPath(pub Option<Vec<IVec2>>);
 
 //// System to setup the tilemap on Startup
 fn setup_tilemap(

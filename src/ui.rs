@@ -1,6 +1,7 @@
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
+use serde_with::de;
 
-use crate::{tilemap::TileType, AppState, StartGameEvent};
+use crate::{cam_ctrl::{CamMoveDir, CamState}, tilemap::TileType, AppState, StartGameEvent};
 
 pub const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -14,28 +15,29 @@ struct MenuUI;
 impl Plugin for Ui {
     fn build(&self, app: &mut App) {
         app.add_event::<StartGameEvent>()
-            .add_systems(PostStartup, display_menu)
+            .add_systems(PostStartup, (display_menu, update_prev_button_state))
             .add_systems(
                 Update,
-                (menu_button_system)
-                    .run_if(in_state(AppState::StartMenu)
-                    .or(in_state(AppState::PauseMenu))
-                    .or(in_state(AppState::InEditor))),
+                menu_button_system.run_if(
+                    in_state(AppState::StartMenu)
+                        .or(in_state(AppState::PauseMenu))
+                        .or(in_state(AppState::InEditor)),
+                ),
             )
             .add_systems(
                 Update,
                 pause_menu.run_if(
                     not(in_state(AppState::PauseMenu))
                         .and(not(in_state(AppState::StartMenu)))
-                        .and(
-                            input_just_pressed(KeyCode::KeyP)
-                                .or(input_just_pressed(KeyCode::Escape)),
-                        ),
+                        .and(input_just_pressed(KeyCode::Escape)),
                 ),
             )
             .add_systems(
-                PostUpdate,
-                update_prev_button_state
+                Update,
+                escape_active_menu.run_if(
+                    in_state(AppState::PauseMenu)
+                    .and(input_just_pressed(KeyCode::Escape))
+                )
             );
     }
 }
@@ -140,7 +142,7 @@ fn menu_button_system(
                             app_state.set(AppState::Exit);
                             exit.write(AppExit::Success);
                         }
-                        _ => ()
+                        _ => (),
                     },
                     _ => (),
                 }
@@ -183,6 +185,24 @@ fn update_prev_button_state(
     for (mut prev_butt_stat, interaction) in button_query {
         prev_butt_stat.0 = interaction.clone();
     }
-
 }
 
+fn escape_active_menu(
+    mut app_state: ResMut<NextState<AppState>>,
+    cam_state: Res<State<CamState>>,
+    mut nodes: Query<&mut Node, With<MenuUI>>,
+    mut vis: Query<&mut Visibility, With<Button>>,
+) {
+    for mut visabitility in vis.iter_mut() {
+        despawn_menu(&mut nodes, &mut visabitility);
+    }
+
+    match cam_state.get() {
+        CamState::EditorView => app_state.set(AppState::InEditor),
+        CamState::GameView => app_state.set(AppState::InGame),
+        CamState::Moving(cam_move_dir) => match cam_move_dir {
+            CamMoveDir::MoveToEditor => app_state.set(AppState::ToEditor),
+            CamMoveDir::MoveToGame => app_state.set(AppState::ToGame),
+        },
+    }
+}

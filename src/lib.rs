@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod cam_ctrl;
 pub mod editor;
+pub mod enemy;
 pub mod game_debug;
 pub mod tilemap;
 pub mod ui;

@@ -1,15 +1,17 @@
-use bevy::{prelude::*, render::mesh};
+use bevy::prelude::*;
 
-use crate::{tilemap::EnemyPath, AppState};
+use crate::{tilemap::{EnemyPath, TILE_SCALE}, AppState};
 
 pub struct EnemyPlugin;
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EnemyWaves>()
+            .init_resource::<EnemySpawnTimer>()
             .add_systems(Startup, setup_enemy_waves)
             .add_systems(
                 Update,
-                (spawn_enemies, move_enemies).run_if(in_state(AppState::InGame)),
+                (spawn_enemies, move_enemies, tick_enemy_spawn_timer)
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -19,6 +21,8 @@ pub struct EnemySpawnTimer{
     pub timer: Timer,
 }
 
+
+// FIXME enable updating timer value based on the wave seperation time
 impl Default for EnemySpawnTimer {
     fn default() -> Self {
         Self {
@@ -40,7 +44,7 @@ pub struct Enemy {
     pub enemy_type: EnemyType,
     pub health: f32,
     pub speed: f32,
-    pub spwaned: bool,
+    pub spawned: bool,
 }
 
 impl Enemy {
@@ -49,7 +53,7 @@ impl Enemy {
             enemy_type,
             health,
             speed,
-            spwaned: false,
+            spawned: false,
         }
     }
 }
@@ -92,7 +96,7 @@ impl EnemyWaves {
 /// system for moving enemies
 fn move_enemies(mut enemies: Query<(&mut Transform, &Enemy)>, time: Res<Time>) {
     for (mut transform, enemy) in enemies.iter_mut() {
-        if enemy.spwaned {
+        if enemy.spawned {
             // TODO add movement logic
             //      - need to move in the direction of the next enemy path, until reached
             transform.translation.x += enemy.speed * time.delta_secs();
@@ -136,22 +140,31 @@ fn tick_enemy_spawn_timer(
 
 fn spawn_enemies(
     mut commands: Commands,
-    enemy_waves: Res<EnemyWaves>,
+    mut enemy_waves: ResMut<EnemyWaves>,
     enemy_path: Res<EnemyPath>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    enemy_spawn_timer: Res<EnemySpawnTimer>,
 ) {
-    let start_pos = enemy_path.0.clone().expect("No Enemy Path Defined..")[0]; 
-    if enemy_waves.current_wave < enemy_waves.waves.len() {
-        let wave = &enemy_waves.waves[enemy_waves.current_wave];
-        if wave.spawn_count < wave.enemies.len() {
-            let enemy = &wave.enemies[wave.spawn_count];
-            commands.spawn((
-                Mesh3d(meshes.add(Cuboid::new(3., 3., 3.))),
-                MeshMaterial3d(materials.add(Color::srgb(1.0, 0.0, 0.0))),
-                Transform::from_translation(Vec3::new(start_pos.x as f32, start_pos.y as f32, 0.5)),
-                enemy.clone(),
-            ));
+    if enemy_spawn_timer.timer.just_finished() {
+        let start_pos = enemy_path.0.clone().expect("No Enemy Path Defined..")[0]; 
+        if enemy_waves.current_wave < enemy_waves.waves.len() {
+            let curr_wave = enemy_waves.current_wave;
+            let wave = &mut enemy_waves.waves[curr_wave];
+            if wave.spawn_count < wave.enemies.len() {
+                info!("Starting location: {:?}", start_pos);
+                info!("Spawn Count: {:?}", wave.spawn_count);
+                let enemy = &mut wave.enemies[wave.spawn_count];
+                enemy.spawned = true;
+
+                commands.spawn((
+                    Mesh3d(meshes.add(Cuboid::new(3., 3., 3.))),
+                    MeshMaterial3d(materials.add(Color::srgb(1.0, 0.0, 0.0))),
+                    Transform::from_translation(Vec3::new(start_pos.x as f32 * TILE_SCALE , start_pos.y as f32 * TILE_SCALE, 0.5)),
+                    enemy.clone(),
+                ));
+                wave.spawn_count += 1;
+            }
         }
     }
 }
@@ -159,27 +172,27 @@ fn spawn_enemies(
 const ENEMY_TANKY: Enemy = Enemy {
     enemy_type: EnemyType::Tanky,
     health: 100.0,
-    speed: 1.0,
-    spwaned: false,
+    speed: 10.0,
+    spawned: false,
 };
 
 const ENEMY_BOSS: Enemy = Enemy {
     enemy_type: EnemyType::Boss,
     health: 500.0,
-    speed: 0.5,
-    spwaned: false,
+    speed: 5.0,
+    spawned: false,
 };
 
 const ENEMY_FAST: Enemy = Enemy {
     enemy_type: EnemyType::Fast,
     health: 50.0,
-    speed: 2.0,
-    spwaned: false,
+    speed: 20.0,
+    spawned: false,
 };
 
 const ENEMY_BASIC: Enemy = Enemy {
     enemy_type: EnemyType::Basic,
     health: 25.0,
-    speed: 1.5,
-    spwaned: false,
+    speed: 15.0,
+    spawned: false,
 };

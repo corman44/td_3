@@ -34,6 +34,9 @@ struct ClearMapEvent;
 struct EditorUI;
 
 #[derive(Debug, Component)]
+struct EditorButton;
+
+#[derive(Debug, Component)]
 pub struct MiniTile;
 
 #[serde_as]
@@ -61,7 +64,7 @@ impl Plugin for Editor {
             .add_systems(Update, setup)
             .add_systems(
                 Update,
-                (editor_buttons, save_map, load_map, clear_map).run_if(in_state(AppState::InEditor)),
+                (editor_buttons, save_map, load_map, clear_map, despawn_editor_menu).run_if(in_state(AppState::InEditor)),
             )
             .add_systems(
                 Update,
@@ -112,13 +115,19 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button(
-                            "Start",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Start))
+                        (
+                            button(
+                                "Start",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::Start))
+                            ),
+                            EditorButton,
                         ),
-                        button(
-                            "Finish",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Finish))
+                        (
+                            button(
+                                "Finish",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::Finish))
+                            ),
+                            EditorButton,
                         ),
                     ]
                 ),
@@ -129,13 +138,19 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button(
-                            "Vertical",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))
+                        (
+                            button(
+                                "Vertical",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::Vertical))
+                            ),
+                            EditorButton,
                         ),
-                        button(
-                            "Hotizontal",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::Horizontal))
+                        (
+                            button(
+                                "Hotizontal",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::Horizontal))
+                            ),
+                            EditorButton,
                         ),
                     ]
                 ),
@@ -146,13 +161,19 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button(
-                            "Top Left",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopLeft))
+                        (
+                            button(
+                                "Top Left",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopLeft))
+                            ),
+                            EditorButton,
                         ),
-                        button(
-                            "Top Right",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopRight))
+                        (
+                            button(
+                                "Top Right",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::TopRight))
+                            ),
+                            EditorButton,
                         ),
                     ]
                 ),
@@ -163,13 +184,19 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button(
-                            "Bottom Left",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomLeft))
+                        (
+                            button(
+                                "Bottom Left",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomLeft))
+                            ),
+                            EditorButton,
                         ),
-                        button(
-                            "Bottom Right",
-                            ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomRight))
+                        (
+                            button(
+                                "Bottom Right",
+                                ButtonType::Editor(TileType::EnemyMap(EnemyTile::BottomRight))
+                            ),
+                            EditorButton,
                         ),
                     ]
                 ),
@@ -180,8 +207,14 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button("Blocked", ButtonType::Editor(TileType::Blocked)),
-                        button("Ground", ButtonType::Editor(TileType::Free)),
+                        (
+                            button("Blocked", ButtonType::Editor(TileType::Blocked)),
+                            EditorButton,
+                        ),
+                        (
+                            button("Ground", ButtonType::Editor(TileType::Free)),
+                            EditorButton,
+                        ),
                     ]
                 ),
                 // Sixth Row
@@ -191,7 +224,10 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button("Clear", ButtonType::Menu(MenuType::Clear)),
+                        (
+                            button("Clear", ButtonType::Menu(MenuType::Clear)),
+                            EditorButton,
+                        ),
                     ]
                 ),
                 // Seventh Row
@@ -201,8 +237,14 @@ fn setup(app_state: Res<State<AppState>>, mut commands: Commands, mut gtm: ResMu
                         ..default()
                     },
                     children![
-                        button("Save", ButtonType::Menu(MenuType::Save)),
-                        button("Load", ButtonType::Menu(MenuType::Load)),
+                        (
+                            button("Save", ButtonType::Menu(MenuType::Save)),
+                            EditorButton,
+                        ),
+                        (
+                            button("Load", ButtonType::Menu(MenuType::Load)),
+                            EditorButton,
+                        ),
                     ]
                 ),
             ],
@@ -279,6 +321,18 @@ fn editor_buttons(
             },
         }
     }
+}
+
+/// Hide the Editor Menu Buttons
+/// cheat way to despawn and later show again.. I think
+// TODO properly call this when leaving the editor (from esc menu..)
+fn despawn_editor_menu(
+    mut editor_button_query: Query<&mut Visibility, With<EditorButton>>,
+) {
+    for mut vis in editor_button_query.iter_mut() {
+        *vis = Visibility::Hidden;
+    }
+    info!("Despawned Editor Menu");
 }
 
 fn spawn_minitile(
